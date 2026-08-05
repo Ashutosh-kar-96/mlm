@@ -1,0 +1,598 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+
+// ============================================
+// 1. RANK SETTING
+// ============================================
+model Rank {
+  id                   Int      @id @default(autoincrement())
+  rankName             String   @map("rank_name") @db.VarChar(50)
+  criteriaBv           Decimal? @map("criteria_bv") @db.Decimal(12, 2)
+  levelNo              Int?     @map("level_no")
+  percentage           Decimal? @db.Decimal(8, 2)
+  selfShoppingAmount   Decimal? @map("self_shopping_amount") @db.Decimal(12, 2)
+  challengeBusinessBv  Decimal? @map("challenge_business_bv") @db.Decimal(12, 2)
+  challengeMonths      Int?     @map("challenge_months")
+
+  members Member[]
+
+  @@map("tbl_ranks")
+}
+
+// ============================================
+// 2. MEMBERS
+// ============================================
+model Member {
+  id           Int       @id @default(autoincrement())
+  regno        String    @unique @db.VarChar(20)
+  username     String?   @db.VarChar(50)
+  firstName    String    @map("first_name") @db.VarChar(50)
+  lastName     String?   @map("last_name") @db.VarChar(50)
+  password     String?   @db.VarChar(100)
+  sponsorId    String?   @map("sponsor_id") @db.VarChar(20)
+  rankId       Int?      @map("rank_id")
+
+  // Registration Information
+  aadhaarNo     String?   @map("aadhaar_no") @db.VarChar(20)
+  fatherName    String?   @map("father_name") @db.VarChar(100)
+  address       String?   @db.VarChar(255)
+  city          String?   @db.VarChar(50)
+  state         String?   @db.VarChar(50)
+  country       String?   @db.VarChar(50)
+  maritalStatus String?   @map("marital_status") @db.VarChar(20)
+  sex           String?   @db.VarChar(10)
+  emailId       String?   @map("email_id") @db.VarChar(100)
+  mobileNo      String?   @map("mobile_no") @db.VarChar(15)
+  postalCode    String?   @map("postal_code") @db.VarChar(10)
+  birthday      DateTime? @db.DateTime
+
+  // Bank Details
+  bankName          String? @map("bank_name") @db.VarChar(100)
+  branch            String? @db.VarChar(100)
+  accountNo         String? @map("account_no") @db.VarChar(30)
+  accountType       String? @map("account_type") @db.VarChar(20)
+  ifscCode          String? @map("ifsc_code") @db.VarChar(15)
+  panNo             String? @map("pan_no") @db.VarChar(15)
+  accountHolderName String? @map("account_holder_name") @db.VarChar(100)
+
+  // Nominee
+  nomineeName     String? @map("nominee_name") @db.VarChar(100)
+  nomineeRelation String? @map("nominee_relation") @db.VarChar(30)
+
+  doj        DateTime? @db.DateTime
+  paidDate   DateTime? @map("paid_date") @db.DateTime
+  planAmount Decimal   @default(0) @map("plan_amount") @db.Decimal(12, 2)
+  status     Int       @default(0) 
+  loginFlag  Boolean   @default(false) @map("login_flag")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  rank                Rank?                @relation(fields: [rankId], references: [id])
+  panVerification     PanVerification?
+  orders              Order[]
+  onlineTransactions  OnlineTransaction[]
+  payouts             Payout[]
+  pinsTransferredTo   PinTransfer[]        @relation("PinTransferTo")
+  pinsUsedBy          PinUsage[]           @relation("PinUsedBy")
+  pinsUsedFor         PinUsage[]           @relation("PinUsedFor")
+  downlineOf          DownlineBusiness[]   @relation("DownlineOwner")
+  downlineMembers     DownlineBusiness[]   @relation("DownlineMember")
+  helpDeskMessages    HelpDeskMessage[]
+  cartItems           CartItem[]
+  walletLedgers       WalletLedger[]
+  fileUploads         FileUpload[]
+  rankHistories       RankHistory[]
+  commissionsEarned   Commission[]         @relation("CommissionEarner")
+  commissionsFrom     Commission[]         @relation("CommissionSource")
+  genealogyAncestors   MemberGenealogy[]    @relation("GenealogyAncestor")
+  genealogyDescendants MemberGenealogy[]    @relation("GenealogyDescendant")
+  rewardClaims        RewardClaim[]
+
+  @@map("tbl_members")
+}
+
+model MemberGenealogy {
+  id             Int      @id @default(autoincrement())
+  ancestorRegno  String   @map("ancestor_regno") @db.VarChar(20)
+  descendantRegno String  @map("descendant_regno") @db.VarChar(20)
+  depth          Int
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  ancestor   Member @relation("GenealogyAncestor", fields: [ancestorRegno], references: [regno])
+  descendant Member @relation("GenealogyDescendant", fields: [descendantRegno], references: [regno])
+
+  @@unique([ancestorRegno, descendantRegno])
+  @@index([descendantRegno])
+  @@map("tbl_member_genealogy")
+}
+
+// ============================================
+// 3. PAN CARD VERIFICATION
+// ============================================
+enum PanStatus {
+  Pending
+  Verified
+  Cancelled
+}
+
+model PanVerification {
+  id             Int       @id @default(autoincrement())
+  memberId       Int       @unique @map("member_id")
+  panNo          String?   @map("pan_no") @db.VarChar(15)
+  panImage       String?   @map("pan_image") @db.VarChar(255) 
+  status         PanStatus @default(Pending) 
+  verifiedBy     String?   @map("verified_by") @db.VarChar(50)
+  verifiedDate   DateTime? @map("verified_date")
+
+  member Member @relation(fields: [memberId], references: [id])
+
+  @@map("tbl_pan_verification")
+}
+
+// ============================================
+// 4. COMPANY / SHOP MASTERS
+// ============================================
+
+// The platform-level invoicing entity that issues bills (e.g. "GOOD WAY INDIAN
+// FASHION PVT. LTD.") — shown in the "From" block on every invoice.
+model Company {
+  id                Int     @id @default(autoincrement())
+  companyName       String  @map("company_name") @db.VarChar(150)
+  addressLine       String? @map("address_line") @db.VarChar(255)
+  city              String? @db.VarChar(50)
+  state             String? @db.VarChar(50)
+  pincode           String? @db.VarChar(10)
+  email             String? @db.VarChar(100)
+  customerCarePhone String? @map("customer_care_phone") @db.VarChar(20)
+  website           String? @db.VarChar(100)
+  gstNo             String? @map("gst_no") @db.VarChar(20)
+
+  @@map("tbl_company_info")
+}
+
+// The vendor/shop the order was placed with — matches the "Total Business
+// Details" dropdown ("goodwayfashion") on the Company Business search screen,
+// and the "Shoppy Name" field on the GST-INVOICE block of the bill.
+model Shop {
+  id       Int     @id @default(autoincrement())
+  shopName String  @map("shop_name") @db.VarChar(100) // goodway indian fashion
+  address  String? @db.VarChar(255)
+  phoneNo  String? @map("phone_no") @db.VarChar(20)
+
+  orders Order[]
+
+  @@map("tbl_shops")
+}
+
+// ============================================
+// 5. COMPANY BUSINESS / ORDERS (Monthly Purchase)
+// ============================================
+model Order {
+  id              Int      @id @default(autoincrement())
+  orderId         String   @unique @map("order_id") @db.VarChar(20)
+  regno           String   @db.VarChar(20)
+  name            String   @db.VarChar(100) 
+  shopId          Int?     @map("shop_id")
+  pv              Decimal? @db.Decimal(12, 2)
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(12, 2)
+  bv              Decimal? @db.Decimal(12, 2)
+  saleDate        DateTime @map("sale_date")
+  approvedStatus  Int      @default(0) @map("approved_status")
+  billPath        String?  @map("bill_path") @db.VarChar(255)
+
+  // Ship-to address (blank when same as buyer)
+  shipAddress String? @map("ship_address") @db.VarChar(255)
+  shipCity    String? @map("ship_city") @db.VarChar(50)
+  shipState   String? @map("ship_state") @db.VarChar(50)
+  shipPincode String? @map("ship_pincode") @db.VarChar(10)
+  shipMobile  String? @map("ship_mobile") @db.VarChar(15)
+
+  // Invoice totals
+  paymentMode      String?  @map("payment_mode") @db.VarChar(30) // Wallet/UPI
+  totalGst         Decimal? @map("total_gst") @db.Decimal(12, 2)
+  totalWithGst     Decimal? @map("total_with_gst") @db.Decimal(12, 2)
+  shippingCost     Decimal? @map("shipping_cost") @db.Decimal(10, 2)
+  subTotalAmount   Decimal? @map("sub_total_amount") @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  member Member      @relation(fields: [regno], references: [regno])
+  shop   Shop?        @relation(fields: [shopId], references: [id])
+  items  OrderItem[]
+  commissions Commission[]
+
+  @@map("tbl_orders")
+}
+
+// Line items shown on the invoice bill
+model OrderItem {
+  id                  Int      @id @default(autoincrement())
+  orderId             Int      @map("order_id")
+  slNo                Int      @map("sl_no") // S.No on invoice
+  productDescription  String   @map("product_description") @db.VarChar(255)
+  price               Decimal  @db.Decimal(10, 2)
+  offerPrice          Decimal  @map("offer_price") @db.Decimal(10, 2)
+  discountPercent     Decimal  @map("discount_percent") @db.Decimal(5, 2)
+  size                String?  @db.VarChar(20)
+  quantity            Decimal  @db.Decimal(10, 2)
+  grossAmount         Decimal  @map("gross_amount") @db.Decimal(12, 2)
+  gst                 Decimal  @db.Decimal(10, 2)
+
+  order Order @relation(fields: [orderId], references: [id])
+  product Product? @relation(fields: [productId], references: [id])
+
+  productId Int? @map("product_id")
+
+  @@map("tbl_order_items")
+}
+
+// ============================================
+// 5A. PRODUCTS / CART
+// ============================================
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(150)
+  description String?  @db.Text
+  category    String?  @db.VarChar(80)
+  brand       String?  @db.VarChar(80)
+  sku         String?  @unique @db.VarChar(50)
+  hsnCode     String?  @map("hsn_code") @db.VarChar(30)
+  size        String?  @db.VarChar(60)
+  color       String?  @db.VarChar(60)
+  material    String?  @db.VarChar(100)
+  price       Decimal  @db.Decimal(12, 2)
+  offerPrice  Decimal? @map("offer_price") @db.Decimal(12, 2)
+  discountPercent Decimal? @map("discount_percent") @db.Decimal(5, 2)
+  pv          Decimal? @db.Decimal(12, 2)
+  bv          Decimal? @db.Decimal(12, 2)
+  gstPercent  Decimal  @default(0) @map("gst_percent") @db.Decimal(5, 2)
+  stock       Int      @default(0)
+  imageUrl    String?  @map("image_url") @db.VarChar(255)
+  imageName   String?  @map("image_name") @db.VarChar(180)
+  imageMime   String?  @map("image_mime") @db.VarChar(80)
+  imageData   String?  @map("image_data") @db.LongText
+  highlights  String?  @db.Text
+  careInstructions String? @map("care_instructions") @db.Text
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  cartItems CartItem[]
+  orderItems OrderItem[]
+
+  @@map("tbl_products")
+}
+
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  regno     String   @db.VarChar(20)
+  productId Int      @map("product_id")
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  member  Member  @relation(fields: [regno], references: [regno])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([regno, productId])
+  @@map("tbl_cart_items")
+}
+
+// ============================================
+// 6. DOWNLINE BUSINESS (User Downline Business report)
+// ============================================
+model DownlineBusiness {
+  id              Int      @id @default(autoincrement())
+  regno           String   @db.VarChar(20)
+  downlineRegno   String   @map("downline_regno") @db.VarChar(20)
+  businessAmount  Decimal? @map("business_amount") @db.Decimal(12, 2)
+  fromDate        DateTime? @map("from_date") @db.Date
+  toDate          DateTime? @map("to_date") @db.Date
+
+  owner    Member @relation("DownlineOwner", fields: [regno], references: [regno])
+  downline Member @relation("DownlineMember", fields: [downlineRegno], references: [regno])
+
+  @@map("tbl_downline_business")
+}
+
+// ============================================
+// 7. ONLINE TRANSACTIONS
+// ============================================
+model OnlineTransaction {
+  id                 Int      @id @default(autoincrement())
+  regno              String   @db.VarChar(20)
+  name               String   @db.VarChar(100)
+  mobile             String?  @db.VarChar(15)
+  amountTxnId        String   @unique @map("amount_txn_id") @db.VarChar(100)
+  orderId            String?  @map("order_id") @db.VarChar(30)
+  transactionAmount  Decimal  @map("transaction_amount") @db.Decimal(12, 2)
+  txnDate            DateTime @map("txn_date")
+
+  member Member @relation(fields: [regno], references: [regno])
+
+  @@map("tbl_online_transactions")
+}
+
+model WalletLedger {
+  id          Int      @id @default(autoincrement())
+  regno       String   @db.VarChar(20)
+  type        String   @db.VarChar(30)
+  description String?  @db.VarChar(255)
+  amount      Decimal  @db.Decimal(12, 2)
+  balance     Decimal? @db.Decimal(12, 2)
+  referenceId String?  @map("reference_id") @db.VarChar(80)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  member Member @relation(fields: [regno], references: [regno])
+
+  @@map("tbl_wallet_ledger")
+}
+
+model Commission {
+  id              Int      @id @default(autoincrement())
+  orderId         Int      @map("order_id")
+  earnerRegno     String   @map("earner_regno") @db.VarChar(20)
+  sourceRegno     String   @map("source_regno") @db.VarChar(20)
+  level           Int
+  type            String   @db.VarChar(40)
+  baseAmount      Decimal  @map("base_amount") @db.Decimal(12, 2)
+  percentage      Decimal  @db.Decimal(8, 2)
+  amount          Decimal  @db.Decimal(12, 2)
+  status          String   @default("Credited") @db.VarChar(30)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  order  Order  @relation(fields: [orderId], references: [id])
+  earner Member @relation("CommissionEarner", fields: [earnerRegno], references: [regno])
+  source Member @relation("CommissionSource", fields: [sourceRegno], references: [regno])
+
+  @@map("tbl_commissions")
+}
+
+// ============================================
+// 8. PAYOUT
+// ============================================
+model Payout {
+  id                Int       @id @default(autoincrement())
+  regno             String    @db.VarChar(20)
+  name              String    @db.VarChar(100)
+  generationBonus   Decimal   @default(0) @map("generation_bonus") @db.Decimal(12, 2)
+  levelBonus        Decimal   @default(0) @map("level_bonus") @db.Decimal(12, 2)
+  totalAmount       Decimal   @map("total_amount") @db.Decimal(12, 2)
+  tds               Decimal?  @db.Decimal(12, 2)
+  adminCharge       Decimal?  @map("admin_charge") @db.Decimal(12, 2)
+  netAmount         Decimal   @map("net_amount") @db.Decimal(12, 2)
+  bankName          String?   @map("bank_name") @db.VarChar(100)
+  accountNo         String?   @map("account_no") @db.VarChar(30)
+  ifscCode          String?   @map("ifsc_code") @db.VarChar(15)
+  mobile            String?   @db.VarChar(15)
+  aadhaarNo         String?   @map("aadhaar_no") @db.VarChar(20)
+  panNo             String?   @map("pan_no") @db.VarChar(15)
+  paymentDate       DateTime? @map("payment_date") @db.Date
+  transactionRef    String?   @map("transaction_ref") @db.VarChar(100)
+  paymentMode       String?   @map("payment_mode") @db.VarChar(40)
+  remarks           String?   @db.VarChar(255)
+  status            Int       @default(0) // 0=Pending/Distribute, 1=Distributed
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  member Member @relation(fields: [regno], references: [regno])
+
+  @@map("tbl_payout")
+}
+
+// ============================================
+// 9. PIN MANAGEMENT
+// ============================================
+
+// Master list of pin denominations/plans — referenced by the "Pin Value" /
+// "Pin type" / "Select Plan" dropdowns on Generate Pin, Activated Pins,
+// Pin Transfer, and Pin Generation Report screens (all point to the same list).
+model PinPlan {
+  id       Int      @id @default(autoincrement())
+  planName String   @map("plan_name") @db.VarChar(50) // Activation License
+  pinValue Decimal  @map("pin_value") @db.Decimal(12, 2) // 3000
+
+  pins Pin[]
+
+  @@map("tbl_pin_plans")
+}
+
+model Pin {
+  id                 Int      @id @default(autoincrement())
+  pinSlNo            Int      @unique @map("pin_sl_no") // 17803
+  pinNo              String   @unique @map("pin_no") @db.VarChar(30) // 2168044907558
+  planId             Int      @map("plan_id") // FK -> PinPlan (shows as "PINID" on Activated Pins screen)
+  pinValue           Decimal  @map("pin_value") @db.Decimal(12, 2) // snapshot of plan value at generation time
+  generatedDate      DateTime @map("generated_date") @db.Date
+  generatedByAdminId Int      @map("generated_by_admin_id") // "CREATEDBY" column on Used Pins report
+  transferStatus     Boolean  @default(false) @map("transfer_status") // Not Transffered / Transferred
+  usedStatus         Boolean  @default(false) @map("used_status") // Un-Used / Used
+  activeStatus       Boolean  @default(true) @map("active_status") // STATUS: True/False on Activated Pins
+
+  plan        PinPlan @relation(fields: [planId], references: [id])
+  generatedBy Admin   @relation("PinGeneratedBy", fields: [generatedByAdminId], references: [id])
+  transfer    PinTransfer?
+  usage       PinUsage?
+
+  @@map("tbl_pins")
+}
+
+model PinTransfer {
+  id           Int      @id @default(autoincrement())
+  pinId        Int      @unique @map("pin_id")
+  fromAdminId  Int      @map("from_admin_id") // "EnterYourID" on screen is actually the recipient; sender is always the logged-in admin
+  toRegno      String   @map("to_regno") @db.VarChar(20)
+  toName       String?  @map("to_name") @db.VarChar(100) // populated after "Verify ID" check
+  pinTypeValue Decimal? @map("pin_type_value") @db.Decimal(12, 2) // "Pin type" dropdown value at time of transfer
+  noOfPins     Int?     @map("no_of_pins")
+  transferDate DateTime @default(now()) @map("transfer_date")
+
+  pin       Pin    @relation(fields: [pinId], references: [id])
+  fromAdmin Admin  @relation("PinTransferFrom", fields: [fromAdminId], references: [id])
+  toMember  Member @relation("PinTransferTo", fields: [toRegno], references: [regno])
+
+  @@map("tbl_pin_transfers")
+}
+
+model PinUsage {
+  id             Int      @id @default(autoincrement())
+  pinId          Int      @unique @map("pin_id")
+  usedByRegno    String   @map("used_by_regno") @db.VarChar(20)
+  usedByName     String?  @map("used_by_name") @db.VarChar(100)
+  usedForRegno   String   @map("used_for_regno") @db.VarChar(20)
+  usedForName    String?  @map("used_for_name") @db.VarChar(100)
+  usedDate       DateTime @map("used_date")
+
+  pin        Pin    @relation(fields: [pinId], references: [id])
+  usedBy     Member @relation("PinUsedBy", fields: [usedByRegno], references: [regno])
+  usedFor    Member @relation("PinUsedFor", fields: [usedForRegno], references: [regno])
+
+  @@map("tbl_pin_usage")
+}
+
+// ============================================
+// 10. ADMIN
+// ============================================
+model Admin {
+  id        Int      @id @default(autoincrement())
+  username  String   @db.VarChar(50)
+  password  String   @db.VarChar(100) // updated via "Update Password" screen (Old/New/Confirm)
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  pinsGenerated    Pin[]         @relation("PinGeneratedBy")
+  pinTransfersMade PinTransfer[] @relation("PinTransferFrom")
+  helpDeskReplies  HelpDeskReply[]
+  dashboardMessages DashboardMessage[]
+  rankHistories RankHistory[]
+  auditLogs AuditLog[]
+
+  @@map("tbl_admin")
+}
+
+model MlmSetting {
+  id          Int      @id @default(autoincrement())
+  keyName     String   @unique @map("key_name") @db.VarChar(80)
+  valueJson   String   @map("value_json") @db.Text
+  description String?  @db.VarChar(255)
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("tbl_mlm_settings")
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  adminId     Int?     @map("admin_id")
+  action      String   @db.VarChar(80)
+  entityType  String?  @map("entity_type") @db.VarChar(80)
+  entityId    String?  @map("entity_id") @db.VarChar(80)
+  detailsJson String?  @map("details_json") @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  admin Admin? @relation(fields: [adminId], references: [id])
+
+  @@map("tbl_audit_logs")
+}
+
+model RankHistory {
+  id            Int      @id @default(autoincrement())
+  regno         String   @db.VarChar(20)
+  oldRankId     Int?     @map("old_rank_id")
+  newRankId     Int?     @map("new_rank_id")
+  oldRankName   String?  @map("old_rank_name") @db.VarChar(50)
+  newRankName   String?  @map("new_rank_name") @db.VarChar(50)
+  oldPercent    Decimal? @map("old_percent") @db.Decimal(8, 2)
+  newPercent    Decimal? @map("new_percent") @db.Decimal(8, 2)
+  changedById   Int?     @map("changed_by_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  member Member @relation(fields: [regno], references: [regno])
+  changedBy Admin? @relation(fields: [changedById], references: [id])
+
+  @@map("tbl_rank_history")
+}
+
+model RewardClaim {
+  id             Int       @id @default(autoincrement())
+  regno          String    @db.VarChar(20)
+  rewardKey      String    @map("reward_key") @db.VarChar(120)
+  title          String    @db.VarChar(120)
+  conditionText  String?   @map("condition_text") @db.VarChar(255)
+  rewardText     String    @map("reward_text") @db.VarChar(255)
+  rankPercent    Decimal   @map("rank_percent") @db.Decimal(8, 2)
+  selfBv         Decimal   @default(0) @map("self_bv") @db.Decimal(12, 2)
+  teamBv         Decimal   @default(0) @map("team_bv") @db.Decimal(12, 2)
+  status         String    @default("Pending") @db.VarChar(30)
+  remarks        String?   @db.VarChar(255)
+  approvedAt     DateTime? @map("approved_at")
+  paidAt         DateTime? @map("paid_at")
+  rejectedAt     DateTime? @map("rejected_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  member Member @relation(fields: [regno], references: [regno])
+
+  @@unique([regno, rewardKey])
+  @@index([status])
+  @@map("tbl_reward_claims")
+}
+
+model FileUpload {
+  id        Int      @id @default(autoincrement())
+  regno     String   @db.VarChar(20)
+  type      String   @db.VarChar(40)
+  fileName  String?  @map("file_name") @db.VarChar(180)
+  fileUrl   String   @map("file_url") @db.VarChar(255)
+  status    String   @default("Pending") @db.VarChar(30)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  member Member @relation(fields: [regno], references: [regno])
+
+  @@map("tbl_file_uploads")
+}
+
+// ============================================
+// 11. SUPPORT / DASHBOARD MESSAGES
+// ============================================
+model HelpDeskMessage {
+  id        Int      @id @default(autoincrement())
+  regno     String   @db.VarChar(20)
+  subject   String?  @db.VarChar(150)
+  message   String   @db.Text
+  status    String   @default("Open") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  member  Member          @relation(fields: [regno], references: [regno])
+  replies HelpDeskReply[]
+
+  @@map("tbl_help_desk_messages")
+}
+
+model HelpDeskReply {
+  id        Int      @id @default(autoincrement())
+  messageId Int      @map("message_id")
+  adminId   Int?     @map("admin_id")
+  reply     String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  message HelpDeskMessage @relation(fields: [messageId], references: [id])
+  admin   Admin?          @relation(fields: [adminId], references: [id])
+
+  @@map("tbl_help_desk_replies")
+}
+
+model DashboardMessage {
+  id        Int      @id @default(autoincrement())
+  adminId   Int?     @map("admin_id")
+  message   String   @db.Text
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  admin Admin? @relation(fields: [adminId], references: [id])
+
+  @@map("tbl_dashboard_messages")
+}

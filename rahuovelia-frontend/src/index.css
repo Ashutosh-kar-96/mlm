@@ -1,0 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Cormorant Garamond", serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-ink-950: #0a0a0c;
+  --color-ink-900: #101012;
+  --color-ink-800: #17161a;
+  --color-ink-700: #211f24;
+  --color-ink-600: #37343b;
+  --color-ink-400: #6e6a72;
+
+  --color-gold-100: #f6ecc9;
+  --color-gold-200: #edd99b;
+  --color-gold-300: #e3c477;
+  --color-gold-400: #d4af51;
+  --color-gold-500: #c19a2e;
+  --color-gold-600: #9c7a1e;
+  --color-gold-700: #7a5f17;
+
+  --color-ivory-50: #fdfcfa;
+  --color-ivory-100: #faf7f0;
+  --color-ivory-200: #f2ecdd;
+
+  --color-emerald-mlm: #4c8d6d;
+  --color-rose-mlm: #b1523f;
+
+  --shadow-gold-glow: 0 0 0 1px rgba(193,154,46,0.25), 0 8px 24px -8px rgba(193,154,46,0.35);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-ivory-50);
+  color: var(--color-ink-900);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-gold-300);
+  color: var(--color-ink-950);
+}
+
+/* thin gold scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-gold-300); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-gold-400); }
+
+.font-display { font-family: var(--font-display); }
+.font-mono { font-family: var(--font-mono); }
+
+.crown-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.crown-divider::before,
+.crown-divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(90deg, transparent, var(--color-gold-300), transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
