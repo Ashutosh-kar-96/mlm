@@ -1,6 +1,6 @@
 import prisma from "../config/db.js";
 import { pagination } from "../utils/query.js";
-import { processOrderBusiness, walletBalance } from "./mlm.service.js";
+import { assertNewcomerOrderLimit, processOrderBusiness, walletBalance } from "./mlm.service.js";
 
 const money = (value) => Number(value || 0);
 const orderId = () => `ORD${Date.now().toString().slice(-10)}`;
@@ -115,7 +115,13 @@ export const removeCartItem = (regno, id) =>
   prisma.cartItem.delete({ where: { id: Number(id), regno } });
 
 export const checkout = async (regno, data = {}) => {
-  const member = await prisma.member.findUnique({ where: { regno } });
+  if (data.paymentMode === "Online") {
+    const error = new Error("Online payment is disabled. Please use wallet payment.");
+    error.status = 400;
+    throw error;
+  }
+
+  const member = await prisma.member.findUnique({ where: { regno }, include: { rank: true } });
   const items = await cart(regno);
   if (!member || items.length === 0) {
     const error = new Error("Cart is empty");
@@ -138,6 +144,8 @@ export const checkout = async (regno, data = {}) => {
       throw error;
     }
   }
+
+  assertNewcomerOrderLimit(member, total);
 
   if (data.paymentMode === "Wallet") {
     const balance = await walletBalance(regno);

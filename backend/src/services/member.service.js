@@ -94,6 +94,12 @@ export const getMember = async (regno) => {
       onlineTransactions: { orderBy: { txnDate: "desc" }, take: 10 },
       payouts: { orderBy: { createdAt: "desc" }, take: 10 },
       pinsTransferredTo: { orderBy: { transferDate: "desc" }, take: 10, include: { pin: true } },
+      rankHistories: { orderBy: { createdAt: "desc" }, take: 20 },
+      commissionsEarned: { orderBy: { createdAt: "desc" }, take: 20 },
+      licensesGiven: { orderBy: { createdAt: "desc" }, take: 20 },
+      licensesReceived: { orderBy: { createdAt: "desc" }, take: 5 },
+      gpgSubscriptions: { orderBy: { subscribedAt: "desc" }, take: 12 },
+      rankChallenges: { orderBy: { createdAt: "desc" }, take: 5 },
     },
   });
   return withoutPassword(member);
@@ -116,7 +122,7 @@ export const createMember = async (data) => {
     await validateSponsor(data.sponsorId);
     member = await prisma.$transaction(async (tx) => {
       const freeSignupRank = data.rankId ? null : await tx.rank.findFirst({
-        where: { rankName: "Free Signup", percentage: 10 },
+        where: { rankName: "Free Signup", percentage: 0 },
         select: { id: true },
       });
       const created = await tx.member.create({

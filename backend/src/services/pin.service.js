@@ -1,6 +1,6 @@
 import prisma from "../config/db.js";
 import { dateRange, pagination, toInt } from "../utils/query.js";
-import { processActivationBusiness } from "./mlm.service.js";
+import { applyRankLicense, processActivationBusiness } from "./mlm.service.js";
 
 const randomPin = () => `${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -74,7 +74,6 @@ export const listPins = async (query) => {
 
   return { items, meta: { page, limit, total } };
 };
-
 export const setActive = (ids, activeStatus) =>
   prisma.pin.updateMany({
     where: { id: { in: ids.map(Number) } },
@@ -147,8 +146,8 @@ export const usePin = async ({ pinNo, usedByRegno, usedForRegno }, actorRole = "
   }
 
   const [usedBy, usedFor] = await Promise.all([
-    prisma.member.findUnique({ where: { regno: usedByRegno } }),
-    prisma.member.findUnique({ where: { regno: usedForRegno } }),
+    prisma.member.findUnique({ where: { regno: usedByRegno }, include: { rank: true } }),
+    prisma.member.findUnique({ where: { regno: usedForRegno }, include: { rank: true } }),
   ]);
 
   if (!usedBy || !usedFor) {
@@ -173,6 +172,10 @@ export const usePin = async ({ pinNo, usedByRegno, usedForRegno }, actorRole = "
       const error = new Error("This pin is not assigned to your account");
       error.status = 403;
       throw error;
+    }
+
+    if (Number(usedBy.rank?.percentage || 0) >= 24) {
+      await applyRankLicense({ giverRegno: usedByRegno, recipientRegno: usedForRegno }, tx);
     }
 
     const usage = await tx.pinUsage.create({

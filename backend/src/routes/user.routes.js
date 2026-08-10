@@ -9,6 +9,7 @@ import {
   getUsers,
   login,
   me,
+  mlmSummary,
   network,
   orders,
   packages,
@@ -16,6 +17,7 @@ import {
   refreshToken,
   register,
   submitKyc,
+  subscribeGpg,
   updateMyProfile,
   wallet,
 } from "../controllers/user.controller.js";
@@ -33,6 +35,8 @@ router.post("/me/withdrawals", authenticate, createWithdrawal);
 router.get("/me/network", authenticate, network);
 router.get("/me/orders", authenticate, orders);
 router.get("/me/commissions", authenticate, commissions);
+router.get("/me/mlm", authenticate, mlmSummary);
+router.post("/me/gpg-subscriptions", authenticate, subscribeGpg);
 router.patch("/me/profile", authenticate, updateMyProfile);
 router.patch("/me/password", authenticate, changeMyPassword);
 router.post("/me/kyc", authenticate, submitKyc);

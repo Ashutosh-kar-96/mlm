@@ -21,6 +21,29 @@ const memberSummarySelect = {
   rank: true,
 };
 
+const monthLabel = (date) => date.toLocaleString("en-US", { month: "short" });
+
+const memberGrowth = async (date = new Date()) => {
+  const months = Array.from({ length: 7 }, (_, index) => {
+    const start = new Date(date.getFullYear(), date.getMonth() - 6 + index, 1);
+    const end = new Date(date.getFullYear(), date.getMonth() - 5 + index, 1);
+    return { month: monthLabel(start), start, end };
+  });
+
+  const counts = await Promise.all(
+    months.map((month) =>
+      prisma.member.count({
+        where: { createdAt: { lt: month.end } },
+      })
+    )
+  );
+
+  return months.map((month, index) => ({
+    month: month.month,
+    users: counts[index],
+  }));
+};
+
 const adminPayload = (admin) => ({
   id: admin.id,
   username: admin.username,
@@ -144,6 +167,7 @@ export const getDashboard = async () => {
     totalBusiness,
     currentBusiness,
     recentMembers,
+    growth,
   ] = await Promise.all([
     prisma.member.count(),
     prisma.member.count({ where: { status: 1 } }),
@@ -165,6 +189,7 @@ export const getDashboard = async () => {
       take: 10,
       select: memberSummarySelect,
     }),
+    memberGrowth(),
   ]);
 
   return {
@@ -179,5 +204,6 @@ export const getDashboard = async () => {
       currentBusiness: currentBusiness._sum.totalAmount || 0,
     },
     recentMembers,
+    memberGrowth: growth,
   };
 };

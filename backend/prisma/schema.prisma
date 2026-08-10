@@ -7,19 +7,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 // ============================================
 // 1. RANK SETTING
 // ============================================
 model Rank {
-  id                   Int      @id @default(autoincrement())
-  rankName             String   @map("rank_name") @db.VarChar(50)
-  criteriaBv           Decimal? @map("criteria_bv") @db.Decimal(12, 2)
-  levelNo              Int?     @map("level_no")
-  percentage           Decimal? @db.Decimal(8, 2)
-  selfShoppingAmount   Decimal? @map("self_shopping_amount") @db.Decimal(12, 2)
-  challengeBusinessBv  Decimal? @map("challenge_business_bv") @db.Decimal(12, 2)
-  challengeMonths      Int?     @map("challenge_months")
+  id                  Int      @id @default(autoincrement())
+  rankName            String   @map("rank_name") @db.VarChar(50)
+  criteriaBv          Decimal? @map("criteria_bv") @db.Decimal(12, 2)
+  levelNo             Int?     @map("level_no")
+  percentage          Decimal? @db.Decimal(8, 2)
+  baseRate            Decimal? @map("base_rate") @db.Decimal(8, 2)
+  monthlyCap          Decimal? @map("monthly_cap") @db.Decimal(12, 2)
+  selfShoppingAmount  Decimal? @map("self_shopping_amount") @db.Decimal(12, 2)
+  challengeBusinessBv Decimal? @map("challenge_business_bv") @db.Decimal(12, 2)
+  challengeMonths     Int?     @map("challenge_months")
 
   members Member[]
 
@@ -30,14 +31,14 @@ model Rank {
 // 2. MEMBERS
 // ============================================
 model Member {
-  id           Int       @id @default(autoincrement())
-  regno        String    @unique @db.VarChar(20)
-  username     String?   @db.VarChar(50)
-  firstName    String    @map("first_name") @db.VarChar(50)
-  lastName     String?   @map("last_name") @db.VarChar(50)
-  password     String?   @db.VarChar(100)
-  sponsorId    String?   @map("sponsor_id") @db.VarChar(20)
-  rankId       Int?      @map("rank_id")
+  id        Int     @id @default(autoincrement())
+  regno     String  @unique @db.VarChar(20)
+  username  String? @db.VarChar(50)
+  firstName String  @map("first_name") @db.VarChar(50)
+  lastName  String? @map("last_name") @db.VarChar(50)
+  password  String? @db.VarChar(100)
+  sponsorId String? @map("sponsor_id") @db.VarChar(20)
+  rankId    Int?    @map("rank_id")
 
   // Registration Information
   aadhaarNo     String?   @map("aadhaar_no") @db.VarChar(20)
@@ -66,43 +67,50 @@ model Member {
   nomineeName     String? @map("nominee_name") @db.VarChar(100)
   nomineeRelation String? @map("nominee_relation") @db.VarChar(30)
 
-  doj        DateTime? @db.DateTime
-  paidDate   DateTime? @map("paid_date") @db.DateTime
-  planAmount Decimal   @default(0) @map("plan_amount") @db.Decimal(12, 2)
-  status     Int       @default(0) 
-  loginFlag  Boolean   @default(false) @map("login_flag")
-  createdAt  DateTime  @default(now()) @map("created_at")
+  doj               DateTime? @db.DateTime
+  paidDate          DateTime? @map("paid_date") @db.DateTime
+  planAmount        Decimal   @default(0) @map("plan_amount") @db.Decimal(12, 2)
+  status            Int       @default(0)
+  loginFlag         Boolean   @default(false) @map("login_flag")
+  gpgPaidUntil      DateTime? @map("gpg_paid_until") @db.Date
+  licensesRemaining Int       @default(0) @map("licenses_remaining")
+  rank38AchievedAt  DateTime? @map("rank38_achieved_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
 
-  rank                Rank?                @relation(fields: [rankId], references: [id])
-  panVerification     PanVerification?
-  orders              Order[]
-  onlineTransactions  OnlineTransaction[]
-  payouts             Payout[]
-  pinsTransferredTo   PinTransfer[]        @relation("PinTransferTo")
-  pinsUsedBy          PinUsage[]           @relation("PinUsedBy")
-  pinsUsedFor         PinUsage[]           @relation("PinUsedFor")
-  downlineOf          DownlineBusiness[]   @relation("DownlineOwner")
-  downlineMembers     DownlineBusiness[]   @relation("DownlineMember")
-  helpDeskMessages    HelpDeskMessage[]
-  cartItems           CartItem[]
-  walletLedgers       WalletLedger[]
-  fileUploads         FileUpload[]
-  rankHistories       RankHistory[]
-  commissionsEarned   Commission[]         @relation("CommissionEarner")
-  commissionsFrom     Commission[]         @relation("CommissionSource")
-  genealogyAncestors   MemberGenealogy[]    @relation("GenealogyAncestor")
-  genealogyDescendants MemberGenealogy[]    @relation("GenealogyDescendant")
-  rewardClaims        RewardClaim[]
+  rank                 Rank?               @relation(fields: [rankId], references: [id])
+  panVerification      PanVerification?
+  orders               Order[]
+  onlineTransactions   OnlineTransaction[]
+  payouts              Payout[]
+  pinsTransferredTo    PinTransfer[]       @relation("PinTransferTo")
+  pinsUsedBy           PinUsage[]          @relation("PinUsedBy")
+  pinsUsedFor          PinUsage[]          @relation("PinUsedFor")
+  downlineOf           DownlineBusiness[]  @relation("DownlineOwner")
+  downlineMembers      DownlineBusiness[]  @relation("DownlineMember")
+  helpDeskMessages     HelpDeskMessage[]
+  cartItems            CartItem[]
+  walletLedgers        WalletLedger[]
+  fileUploads          FileUpload[]
+  rankHistories        RankHistory[]
+  commissionsEarned    Commission[]        @relation("CommissionEarner")
+  commissionsFrom      Commission[]        @relation("CommissionSource")
+  genealogyAncestors   MemberGenealogy[]   @relation("GenealogyAncestor")
+  genealogyDescendants MemberGenealogy[]   @relation("GenealogyDescendant")
+  rewardClaims         RewardClaim[]
+  licensesGiven        LicenseUsage[]     @relation("LicenseGiver")
+  licensesReceived     LicenseUsage[]     @relation("LicenseReceiver")
+  gpgSubscriptions     GpgSubscription[]
+  rankChallenges       RankChallenge[]
 
   @@map("tbl_members")
 }
 
 model MemberGenealogy {
-  id             Int      @id @default(autoincrement())
-  ancestorRegno  String   @map("ancestor_regno") @db.VarChar(20)
-  descendantRegno String  @map("descendant_regno") @db.VarChar(20)
-  depth          Int
-  createdAt      DateTime @default(now()) @map("created_at")
+  id              Int      @id @default(autoincrement())
+  ancestorRegno   String   @map("ancestor_regno") @db.VarChar(20)
+  descendantRegno String   @map("descendant_regno") @db.VarChar(20)
+  depth           Int
+  createdAt       DateTime @default(now()) @map("created_at")
 
   ancestor   Member @relation("GenealogyAncestor", fields: [ancestorRegno], references: [regno])
   descendant Member @relation("GenealogyDescendant", fields: [descendantRegno], references: [regno])
@@ -122,13 +130,13 @@ enum PanStatus {
 }
 
 model PanVerification {
-  id             Int       @id @default(autoincrement())
-  memberId       Int       @unique @map("member_id")
-  panNo          String?   @map("pan_no") @db.VarChar(15)
-  panImage       String?   @map("pan_image") @db.VarChar(255) 
-  status         PanStatus @default(Pending) 
-  verifiedBy     String?   @map("verified_by") @db.VarChar(50)
-  verifiedDate   DateTime? @map("verified_date")
+  id           Int       @id @default(autoincrement())
+  memberId     Int       @unique @map("member_id")
+  panNo        String?   @map("pan_no") @db.VarChar(15)
+  panImage     String?   @map("pan_image") @db.VarChar(255)
+  status       PanStatus @default(Pending)
+  verifiedBy   String?   @map("verified_by") @db.VarChar(50)
+  verifiedDate DateTime? @map("verified_date")
 
   member Member @relation(fields: [memberId], references: [id])
 
@@ -174,17 +182,17 @@ model Shop {
 // 5. COMPANY BUSINESS / ORDERS (Monthly Purchase)
 // ============================================
 model Order {
-  id              Int      @id @default(autoincrement())
-  orderId         String   @unique @map("order_id") @db.VarChar(20)
-  regno           String   @db.VarChar(20)
-  name            String   @db.VarChar(100) 
-  shopId          Int?     @map("shop_id")
-  pv              Decimal? @db.Decimal(12, 2)
-  totalAmount     Decimal  @map("total_amount") @db.Decimal(12, 2)
-  bv              Decimal? @db.Decimal(12, 2)
-  saleDate        DateTime @map("sale_date")
-  approvedStatus  Int      @default(0) @map("approved_status")
-  billPath        String?  @map("bill_path") @db.VarChar(255)
+  id             Int      @id @default(autoincrement())
+  orderId        String   @unique @map("order_id") @db.VarChar(20)
+  regno          String   @db.VarChar(20)
+  name           String   @db.VarChar(100)
+  shopId         Int?     @map("shop_id")
+  pv             Decimal? @db.Decimal(12, 2)
+  totalAmount    Decimal  @map("total_amount") @db.Decimal(12, 2)
+  bv             Decimal? @db.Decimal(12, 2)
+  saleDate       DateTime @map("sale_date")
+  approvedStatus Int      @default(0) @map("approved_status")
+  billPath       String?  @map("bill_path") @db.VarChar(255)
 
   // Ship-to address (blank when same as buyer)
   shipAddress String? @map("ship_address") @db.VarChar(255)
@@ -194,17 +202,17 @@ model Order {
   shipMobile  String? @map("ship_mobile") @db.VarChar(15)
 
   // Invoice totals
-  paymentMode      String?  @map("payment_mode") @db.VarChar(30) // Wallet/UPI
-  totalGst         Decimal? @map("total_gst") @db.Decimal(12, 2)
-  totalWithGst     Decimal? @map("total_with_gst") @db.Decimal(12, 2)
-  shippingCost     Decimal? @map("shipping_cost") @db.Decimal(10, 2)
-  subTotalAmount   Decimal? @map("sub_total_amount") @db.Decimal(12, 2)
+  paymentMode    String?  @map("payment_mode") @db.VarChar(30) // Wallet/UPI
+  totalGst       Decimal? @map("total_gst") @db.Decimal(12, 2)
+  totalWithGst   Decimal? @map("total_with_gst") @db.Decimal(12, 2)
+  shippingCost   Decimal? @map("shipping_cost") @db.Decimal(10, 2)
+  subTotalAmount Decimal? @map("sub_total_amount") @db.Decimal(12, 2)
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  member Member      @relation(fields: [regno], references: [regno])
-  shop   Shop?        @relation(fields: [shopId], references: [id])
-  items  OrderItem[]
+  member      Member       @relation(fields: [regno], references: [regno])
+  shop        Shop?        @relation(fields: [shopId], references: [id])
+  items       OrderItem[]
   commissions Commission[]
 
   @@map("tbl_orders")
@@ -212,19 +220,19 @@ model Order {
 
 // Line items shown on the invoice bill
 model OrderItem {
-  id                  Int      @id @default(autoincrement())
-  orderId             Int      @map("order_id")
-  slNo                Int      @map("sl_no") // S.No on invoice
-  productDescription  String   @map("product_description") @db.VarChar(255)
-  price               Decimal  @db.Decimal(10, 2)
-  offerPrice          Decimal  @map("offer_price") @db.Decimal(10, 2)
-  discountPercent     Decimal  @map("discount_percent") @db.Decimal(5, 2)
-  size                String?  @db.VarChar(20)
-  quantity            Decimal  @db.Decimal(10, 2)
-  grossAmount         Decimal  @map("gross_amount") @db.Decimal(12, 2)
-  gst                 Decimal  @db.Decimal(10, 2)
+  id                 Int     @id @default(autoincrement())
+  orderId            Int     @map("order_id")
+  slNo               Int     @map("sl_no") // S.No on invoice
+  productDescription String  @map("product_description") @db.VarChar(255)
+  price              Decimal @db.Decimal(10, 2)
+  offerPrice         Decimal @map("offer_price") @db.Decimal(10, 2)
+  discountPercent    Decimal @map("discount_percent") @db.Decimal(5, 2)
+  size               String? @db.VarChar(20)
+  quantity           Decimal @db.Decimal(10, 2)
+  grossAmount        Decimal @map("gross_amount") @db.Decimal(12, 2)
+  gst                Decimal @db.Decimal(10, 2)
 
-  order Order @relation(fields: [orderId], references: [id])
+  order   Order    @relation(fields: [orderId], references: [id])
   product Product? @relation(fields: [productId], references: [id])
 
   productId Int? @map("product_id")
@@ -236,34 +244,34 @@ model OrderItem {
 // 5A. PRODUCTS / CART
 // ============================================
 model Product {
-  id          Int      @id @default(autoincrement())
-  name        String   @db.VarChar(150)
-  description String?  @db.Text
-  category    String?  @db.VarChar(80)
-  brand       String?  @db.VarChar(80)
-  sku         String?  @unique @db.VarChar(50)
-  hsnCode     String?  @map("hsn_code") @db.VarChar(30)
-  size        String?  @db.VarChar(60)
-  color       String?  @db.VarChar(60)
-  material    String?  @db.VarChar(100)
-  price       Decimal  @db.Decimal(12, 2)
-  offerPrice  Decimal? @map("offer_price") @db.Decimal(12, 2)
-  discountPercent Decimal? @map("discount_percent") @db.Decimal(5, 2)
-  pv          Decimal? @db.Decimal(12, 2)
-  bv          Decimal? @db.Decimal(12, 2)
-  gstPercent  Decimal  @default(0) @map("gst_percent") @db.Decimal(5, 2)
-  stock       Int      @default(0)
-  imageUrl    String?  @map("image_url") @db.VarChar(255)
-  imageName   String?  @map("image_name") @db.VarChar(180)
-  imageMime   String?  @map("image_mime") @db.VarChar(80)
-  imageData   String?  @map("image_data") @db.LongText
-  highlights  String?  @db.Text
-  careInstructions String? @map("care_instructions") @db.Text
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id               Int      @id @default(autoincrement())
+  name             String   @db.VarChar(150)
+  description      String?  @db.Text
+  category         String?  @db.VarChar(80)
+  brand            String?  @db.VarChar(80)
+  sku              String?  @unique @db.VarChar(50)
+  hsnCode          String?  @map("hsn_code") @db.VarChar(30)
+  size             String?  @db.VarChar(60)
+  color            String?  @db.VarChar(60)
+  material         String?  @db.VarChar(100)
+  price            Decimal  @db.Decimal(12, 2)
+  offerPrice       Decimal? @map("offer_price") @db.Decimal(12, 2)
+  discountPercent  Decimal? @map("discount_percent") @db.Decimal(5, 2)
+  pv               Decimal? @db.Decimal(12, 2)
+  bv               Decimal? @db.Decimal(12, 2)
+  gstPercent       Decimal  @default(0) @map("gst_percent") @db.Decimal(5, 2)
+  stock            Int      @default(0)
+  imageUrl         String?  @map("image_url") @db.VarChar(255)
+  imageName        String?  @map("image_name") @db.VarChar(180)
+  imageMime        String?  @map("image_mime") @db.VarChar(80)
+  imageData        String?  @map("image_data") @db.LongText
+  highlights       String?  @db.Text
+  careInstructions String?  @map("care_instructions") @db.Text
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
-  cartItems CartItem[]
+  cartItems  CartItem[]
   orderItems OrderItem[]
 
   @@map("tbl_products")
@@ -288,12 +296,12 @@ model CartItem {
 // 6. DOWNLINE BUSINESS (User Downline Business report)
 // ============================================
 model DownlineBusiness {
-  id              Int      @id @default(autoincrement())
-  regno           String   @db.VarChar(20)
-  downlineRegno   String   @map("downline_regno") @db.VarChar(20)
-  businessAmount  Decimal? @map("business_amount") @db.Decimal(12, 2)
-  fromDate        DateTime? @map("from_date") @db.Date
-  toDate          DateTime? @map("to_date") @db.Date
+  id             Int       @id @default(autoincrement())
+  regno          String    @db.VarChar(20)
+  downlineRegno  String    @map("downline_regno") @db.VarChar(20)
+  businessAmount Decimal?  @map("business_amount") @db.Decimal(12, 2)
+  fromDate       DateTime? @map("from_date") @db.Date
+  toDate         DateTime? @map("to_date") @db.Date
 
   owner    Member @relation("DownlineOwner", fields: [regno], references: [regno])
   downline Member @relation("DownlineMember", fields: [downlineRegno], references: [regno])
@@ -305,14 +313,14 @@ model DownlineBusiness {
 // 7. ONLINE TRANSACTIONS
 // ============================================
 model OnlineTransaction {
-  id                 Int      @id @default(autoincrement())
-  regno              String   @db.VarChar(20)
-  name               String   @db.VarChar(100)
-  mobile             String?  @db.VarChar(15)
-  amountTxnId        String   @unique @map("amount_txn_id") @db.VarChar(100)
-  orderId            String?  @map("order_id") @db.VarChar(30)
-  transactionAmount  Decimal  @map("transaction_amount") @db.Decimal(12, 2)
-  txnDate            DateTime @map("txn_date")
+  id                Int      @id @default(autoincrement())
+  regno             String   @db.VarChar(20)
+  name              String   @db.VarChar(100)
+  mobile            String?  @db.VarChar(15)
+  amountTxnId       String   @unique @map("amount_txn_id") @db.VarChar(100)
+  orderId           String?  @map("order_id") @db.VarChar(30)
+  transactionAmount Decimal  @map("transaction_amount") @db.Decimal(12, 2)
+  txnDate           DateTime @map("txn_date")
 
   member Member @relation(fields: [regno], references: [regno])
 
@@ -335,17 +343,25 @@ model WalletLedger {
 }
 
 model Commission {
-  id              Int      @id @default(autoincrement())
-  orderId         Int      @map("order_id")
-  earnerRegno     String   @map("earner_regno") @db.VarChar(20)
-  sourceRegno     String   @map("source_regno") @db.VarChar(20)
-  level           Int
-  type            String   @db.VarChar(40)
-  baseAmount      Decimal  @map("base_amount") @db.Decimal(12, 2)
-  percentage      Decimal  @db.Decimal(8, 2)
-  amount          Decimal  @db.Decimal(12, 2)
-  status          String   @default("Credited") @db.VarChar(30)
-  createdAt       DateTime @default(now()) @map("created_at")
+  id          Int      @id @default(autoincrement())
+  orderId     Int      @map("order_id")
+  earnerRegno String   @map("earner_regno") @db.VarChar(20)
+  sourceRegno String   @map("source_regno") @db.VarChar(20)
+  level       Int
+  type        String   @db.VarChar(40)
+  baseAmount  Decimal  @map("base_amount") @db.Decimal(12, 2)
+  percentage  Decimal  @db.Decimal(8, 2)
+  amount      Decimal  @db.Decimal(12, 2)
+  status      String   @default("Credited") @db.VarChar(30)
+  sourceKey   String?  @unique @map("source_key") @db.VarChar(120)
+  reasonCode  String?  @map("reason_code") @db.VarChar(80)
+  rankLabel   Decimal? @map("rank_label") @db.Decimal(8, 2)
+  lowerRankLabel Decimal? @map("lower_rank_label") @db.Decimal(8, 2)
+  amountBeforeCap Decimal? @map("amount_before_cap") @db.Decimal(12, 2)
+  capApplied  Boolean @default(false) @map("cap_applied")
+  gpgSlot     Int?    @map("gpg_slot")
+  auditJson   String? @map("audit_json") @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
 
   order  Order  @relation(fields: [orderId], references: [id])
   earner Member @relation("CommissionEarner", fields: [earnerRegno], references: [regno])
@@ -354,31 +370,97 @@ model Commission {
   @@map("tbl_commissions")
 }
 
+model LicenseUsage {
+  id                   Int      @id @default(autoincrement())
+  giverRegno           String   @map("giver_regno") @db.VarChar(20)
+  giverRankAtTime      Decimal  @map("giver_rank_at_time") @db.Decimal(8, 2)
+  receiverRegno        String   @unique @map("receiver_regno") @db.VarChar(20)
+  receiverPreviousRank Decimal  @map("receiver_previous_rank") @db.Decimal(8, 2)
+  receiverNewRank      Decimal  @map("receiver_new_rank") @db.Decimal(8, 2)
+  licenseSequence      Int      @map("license_sequence")
+  referenceId          String   @unique @map("reference_id") @db.VarChar(120)
+  metadataJson         String?  @map("metadata_json") @db.Text
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  giver    Member @relation("LicenseGiver", fields: [giverRegno], references: [regno])
+  receiver Member @relation("LicenseReceiver", fields: [receiverRegno], references: [regno])
+
+  @@index([giverRegno])
+  @@map("tbl_license_usages")
+}
+
+model GpgSubscription {
+  id             Int       @id @default(autoincrement())
+  regno          String    @db.VarChar(20)
+  cycleKey       String    @map("cycle_key") @db.VarChar(20)
+  rankLabel      Decimal?  @map("rank_label") @db.Decimal(8, 2)
+  subscribedAt   DateTime  @default(now()) @map("subscribed_at")
+  approvalStatus String    @default("Pending") @map("approval_status") @db.VarChar(30)
+  approvedAt     DateTime? @map("approved_at")
+  rejectedAt     DateTime? @map("rejected_at")
+  approvedById   Int?      @map("approved_by_id")
+  accessNumber   Int?      @map("access_number")
+  accessPercentage Decimal? @map("access_percentage") @db.Decimal(8, 2)
+  assignmentMode String?   @map("assignment_mode") @db.VarChar(20)
+  assignedAt     DateTime? @map("assigned_at")
+  metadataJson   String?   @map("metadata_json") @db.Text
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  member Member @relation(fields: [regno], references: [regno])
+
+  @@unique([regno, cycleKey])
+  @@unique([cycleKey, rankLabel, accessNumber])
+  @@index([cycleKey, approvalStatus])
+  @@map("tbl_gpg_subscriptions")
+}
+
+model RankChallenge {
+  id           Int       @id @default(autoincrement())
+  regno        String    @db.VarChar(20)
+  challengeType String   @default("RANK_41") @map("challenge_type") @db.VarChar(40)
+  status       String    @default("Active") @db.VarChar(30)
+  startedAt    DateTime  @map("started_at")
+  endsAt       DateTime  @map("ends_at")
+  requiredBv   Decimal   @default(1490000) @map("required_bv") @db.Decimal(12, 2)
+  currentBv    Decimal   @default(0) @map("current_bv") @db.Decimal(12, 2)
+  metadataJson String?   @map("metadata_json") @db.Text
+  completedAt  DateTime? @map("completed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  member Member @relation(fields: [regno], references: [regno])
+
+  @@unique([regno, challengeType, startedAt])
+  @@index([status])
+  @@map("tbl_rank_challenges")
+}
+
 // ============================================
 // 8. PAYOUT
 // ============================================
 model Payout {
-  id                Int       @id @default(autoincrement())
-  regno             String    @db.VarChar(20)
-  name              String    @db.VarChar(100)
-  generationBonus   Decimal   @default(0) @map("generation_bonus") @db.Decimal(12, 2)
-  levelBonus        Decimal   @default(0) @map("level_bonus") @db.Decimal(12, 2)
-  totalAmount       Decimal   @map("total_amount") @db.Decimal(12, 2)
-  tds               Decimal?  @db.Decimal(12, 2)
-  adminCharge       Decimal?  @map("admin_charge") @db.Decimal(12, 2)
-  netAmount         Decimal   @map("net_amount") @db.Decimal(12, 2)
-  bankName          String?   @map("bank_name") @db.VarChar(100)
-  accountNo         String?   @map("account_no") @db.VarChar(30)
-  ifscCode          String?   @map("ifsc_code") @db.VarChar(15)
-  mobile            String?   @db.VarChar(15)
-  aadhaarNo         String?   @map("aadhaar_no") @db.VarChar(20)
-  panNo             String?   @map("pan_no") @db.VarChar(15)
-  paymentDate       DateTime? @map("payment_date") @db.Date
-  transactionRef    String?   @map("transaction_ref") @db.VarChar(100)
-  paymentMode       String?   @map("payment_mode") @db.VarChar(40)
-  remarks           String?   @db.VarChar(255)
-  status            Int       @default(0) // 0=Pending/Distribute, 1=Distributed
-  createdAt         DateTime  @default(now()) @map("created_at")
+  id              Int       @id @default(autoincrement())
+  regno           String    @db.VarChar(20)
+  name            String    @db.VarChar(100)
+  generationBonus Decimal   @default(0) @map("generation_bonus") @db.Decimal(12, 2)
+  levelBonus      Decimal   @default(0) @map("level_bonus") @db.Decimal(12, 2)
+  totalAmount     Decimal   @map("total_amount") @db.Decimal(12, 2)
+  tds             Decimal?  @db.Decimal(12, 2)
+  adminCharge     Decimal?  @map("admin_charge") @db.Decimal(12, 2)
+  netAmount       Decimal   @map("net_amount") @db.Decimal(12, 2)
+  bankName        String?   @map("bank_name") @db.VarChar(100)
+  accountNo       String?   @map("account_no") @db.VarChar(30)
+  ifscCode        String?   @map("ifsc_code") @db.VarChar(15)
+  mobile          String?   @db.VarChar(15)
+  aadhaarNo       String?   @map("aadhaar_no") @db.VarChar(20)
+  panNo           String?   @map("pan_no") @db.VarChar(15)
+  paymentDate     DateTime? @map("payment_date") @db.Date
+  transactionRef  String?   @map("transaction_ref") @db.VarChar(100)
+  paymentMode     String?   @map("payment_mode") @db.VarChar(40)
+  remarks         String?   @db.VarChar(255)
+  status          Int       @default(0) // 0=Pending/Distribute, 1=Distributed
+  createdAt       DateTime  @default(now()) @map("created_at")
 
   member Member @relation(fields: [regno], references: [regno])
 
@@ -393,9 +475,9 @@ model Payout {
 // "Pin type" / "Select Plan" dropdowns on Generate Pin, Activated Pins,
 // Pin Transfer, and Pin Generation Report screens (all point to the same list).
 model PinPlan {
-  id       Int      @id @default(autoincrement())
-  planName String   @map("plan_name") @db.VarChar(50) // Activation License
-  pinValue Decimal  @map("pin_value") @db.Decimal(12, 2) // 3000
+  id       Int     @id @default(autoincrement())
+  planName String  @map("plan_name") @db.VarChar(50) // Activation License
+  pinValue Decimal @map("pin_value") @db.Decimal(12, 2) // 3000
 
   pins Pin[]
 
@@ -414,8 +496,8 @@ model Pin {
   usedStatus         Boolean  @default(false) @map("used_status") // Un-Used / Used
   activeStatus       Boolean  @default(true) @map("active_status") // STATUS: True/False on Activated Pins
 
-  plan        PinPlan @relation(fields: [planId], references: [id])
-  generatedBy Admin   @relation("PinGeneratedBy", fields: [generatedByAdminId], references: [id])
+  plan        PinPlan      @relation(fields: [planId], references: [id])
+  generatedBy Admin        @relation("PinGeneratedBy", fields: [generatedByAdminId], references: [id])
   transfer    PinTransfer?
   usage       PinUsage?
 
@@ -440,17 +522,17 @@ model PinTransfer {
 }
 
 model PinUsage {
-  id             Int      @id @default(autoincrement())
-  pinId          Int      @unique @map("pin_id")
-  usedByRegno    String   @map("used_by_regno") @db.VarChar(20)
-  usedByName     String?  @map("used_by_name") @db.VarChar(100)
-  usedForRegno   String   @map("used_for_regno") @db.VarChar(20)
-  usedForName    String?  @map("used_for_name") @db.VarChar(100)
-  usedDate       DateTime @map("used_date")
+  id           Int      @id @default(autoincrement())
+  pinId        Int      @unique @map("pin_id")
+  usedByRegno  String   @map("used_by_regno") @db.VarChar(20)
+  usedByName   String?  @map("used_by_name") @db.VarChar(100)
+  usedForRegno String   @map("used_for_regno") @db.VarChar(20)
+  usedForName  String?  @map("used_for_name") @db.VarChar(100)
+  usedDate     DateTime @map("used_date")
 
-  pin        Pin    @relation(fields: [pinId], references: [id])
-  usedBy     Member @relation("PinUsedBy", fields: [usedByRegno], references: [regno])
-  usedFor    Member @relation("PinUsedFor", fields: [usedForRegno], references: [regno])
+  pin     Pin    @relation(fields: [pinId], references: [id])
+  usedBy  Member @relation("PinUsedBy", fields: [usedByRegno], references: [regno])
+  usedFor Member @relation("PinUsedFor", fields: [usedForRegno], references: [regno])
 
   @@map("tbl_pin_usage")
 }
@@ -464,12 +546,12 @@ model Admin {
   password  String   @db.VarChar(100) // updated via "Update Password" screen (Old/New/Confirm)
   updatedAt DateTime @default(now()) @map("updated_at")
 
-  pinsGenerated    Pin[]         @relation("PinGeneratedBy")
-  pinTransfersMade PinTransfer[] @relation("PinTransferFrom")
-  helpDeskReplies  HelpDeskReply[]
+  pinsGenerated     Pin[]              @relation("PinGeneratedBy")
+  pinTransfersMade  PinTransfer[]      @relation("PinTransferFrom")
+  helpDeskReplies   HelpDeskReply[]
   dashboardMessages DashboardMessage[]
-  rankHistories RankHistory[]
-  auditLogs AuditLog[]
+  rankHistories     RankHistory[]
+  auditLogs         AuditLog[]
 
   @@map("tbl_admin")
 }
@@ -499,40 +581,42 @@ model AuditLog {
 }
 
 model RankHistory {
-  id            Int      @id @default(autoincrement())
-  regno         String   @db.VarChar(20)
-  oldRankId     Int?     @map("old_rank_id")
-  newRankId     Int?     @map("new_rank_id")
-  oldRankName   String?  @map("old_rank_name") @db.VarChar(50)
-  newRankName   String?  @map("new_rank_name") @db.VarChar(50)
-  oldPercent    Decimal? @map("old_percent") @db.Decimal(8, 2)
-  newPercent    Decimal? @map("new_percent") @db.Decimal(8, 2)
-  changedById   Int?     @map("changed_by_id")
-  createdAt     DateTime @default(now()) @map("created_at")
+  id          Int      @id @default(autoincrement())
+  regno       String   @db.VarChar(20)
+  oldRankId   Int?     @map("old_rank_id")
+  newRankId   Int?     @map("new_rank_id")
+  oldRankName String?  @map("old_rank_name") @db.VarChar(50)
+  newRankName String?  @map("new_rank_name") @db.VarChar(50)
+  oldPercent  Decimal? @map("old_percent") @db.Decimal(8, 2)
+  newPercent  Decimal? @map("new_percent") @db.Decimal(8, 2)
+  promotionReason String? @map("promotion_reason") @db.VarChar(60)
+  qualificationSnapshot String? @map("qualification_snapshot") @db.Text
+  changedById Int?     @map("changed_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  member Member @relation(fields: [regno], references: [regno])
+  member    Member @relation(fields: [regno], references: [regno])
   changedBy Admin? @relation(fields: [changedById], references: [id])
 
   @@map("tbl_rank_history")
 }
 
 model RewardClaim {
-  id             Int       @id @default(autoincrement())
-  regno          String    @db.VarChar(20)
-  rewardKey      String    @map("reward_key") @db.VarChar(120)
-  title          String    @db.VarChar(120)
-  conditionText  String?   @map("condition_text") @db.VarChar(255)
-  rewardText     String    @map("reward_text") @db.VarChar(255)
-  rankPercent    Decimal   @map("rank_percent") @db.Decimal(8, 2)
-  selfBv         Decimal   @default(0) @map("self_bv") @db.Decimal(12, 2)
-  teamBv         Decimal   @default(0) @map("team_bv") @db.Decimal(12, 2)
-  status         String    @default("Pending") @db.VarChar(30)
-  remarks        String?   @db.VarChar(255)
-  approvedAt     DateTime? @map("approved_at")
-  paidAt         DateTime? @map("paid_at")
-  rejectedAt     DateTime? @map("rejected_at")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  id            Int       @id @default(autoincrement())
+  regno         String    @db.VarChar(20)
+  rewardKey     String    @map("reward_key") @db.VarChar(120)
+  title         String    @db.VarChar(120)
+  conditionText String?   @map("condition_text") @db.VarChar(255)
+  rewardText    String    @map("reward_text") @db.VarChar(255)
+  rankPercent   Decimal   @map("rank_percent") @db.Decimal(8, 2)
+  selfBv        Decimal   @default(0) @map("self_bv") @db.Decimal(12, 2)
+  teamBv        Decimal   @default(0) @map("team_bv") @db.Decimal(12, 2)
+  status        String    @default("Pending") @db.VarChar(30)
+  remarks       String?   @db.VarChar(255)
+  approvedAt    DateTime? @map("approved_at")
+  paidAt        DateTime? @map("paid_at")
+  rejectedAt    DateTime? @map("rejected_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   member Member @relation(fields: [regno], references: [regno])
 

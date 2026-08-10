@@ -8,6 +8,7 @@
     "start": "node src/server.js",
     "seed": "prisma db seed",
     "smoke": "node scripts/smoke.mjs",
+    "smoke:mlm-rules": "node scripts/mlm-rules-smoke.mjs",
     "recalculate:commissions": "node scripts/recalculate-commissions.mjs",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

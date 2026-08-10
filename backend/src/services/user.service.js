@@ -120,6 +120,10 @@ export const createUser = async (data) => {
   await validateSponsor(data.sponsorId);
 
   return prisma.$transaction(async (tx) => {
+    const freeSignupRank = await tx.rank.findFirst({
+      where: { rankName: "Free Signup", percentage: 0 },
+      select: { id: true },
+    });
     const member = await tx.member.create({
       data: {
         regno: data.regno || await nextRegno(),
@@ -130,6 +134,7 @@ export const createUser = async (data) => {
         emailId: data.email || data.emailId,
         mobileNo: data.mobile || data.mobileNo,
         sponsorId: data.sponsorId,
+        rankId: data.rankId ?? freeSignupRank?.id,
         doj: data.doj ? new Date(data.doj) : new Date(),
         planAmount: data.planAmount ?? 0,
         status: data.status ?? 0,
@@ -244,6 +249,16 @@ export const me = async (user) => {
 };
 
 const money = (value) => Number(value || 0);
+const monthKey = (date) => date.toLocaleString("en-US", { month: "short" });
+const monthRange = (date = new Date(), offset = 0) => {
+  const start = new Date(date.getFullYear(), date.getMonth() + offset, 1);
+  const end = new Date(date.getFullYear(), date.getMonth() + offset + 1, 1);
+  return { start, end };
+};
+const percentageChange = (current, previous) => {
+  if (!previous) return current ? 100 : 0;
+  return Number((((current - previous) / previous) * 100).toFixed(1));
+};
 
 const memberByToken = async (user) => {
   const member = await prisma.member.findUnique({
@@ -267,11 +282,112 @@ const memberByToken = async (user) => {
   return member;
 };
 
+export const mlmSummary = async (user) => {
+  const requiredMemberSelect = {
+    id: true,
+    regno: true,
+    rank: true,
+  };
+  const optionalMlmMemberSelect = {
+    ...requiredMemberSelect,
+    licensesRemaining: true,
+    rank38AchievedAt: true,
+  };
+  const safeMemberForMlm = async () => {
+    try {
+      return await prisma.member.findUnique({
+        where: { id: Number(user.id) },
+        select: optionalMlmMemberSelect,
+      });
+    } catch (error) {
+      if (error.code !== "P2022") throw error;
+      return prisma.member.findUnique({
+        where: { id: Number(user.id) },
+        select: requiredMemberSelect,
+      });
+    }
+  };
+  const member = await safeMemberForMlm();
+  if (!member) {
+    const error = new Error("Member not found");
+    error.status = 404;
+    throw error;
+  }
+  const safeFindMany = async (delegate, args, fallback = []) => {
+    if (!delegate?.findMany) return fallback;
+    try {
+      return await delegate.findMany(args);
+    } catch (error) {
+      if (["P2021", "P2022"].includes(error.code)) return fallback;
+      throw error;
+    }
+  };
+
+  const [licenseHistory, gpgSubscriptions, rankChallenges, rankHistory, recentCommissions] = await Promise.all([
+    safeFindMany(prisma.licenseUsage, {
+      where: { OR: [{ giverRegno: member.regno }, { receiverRegno: member.regno }] },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    safeFindMany(prisma.gpgSubscription, {
+      where: { regno: member.regno },
+      orderBy: { subscribedAt: "desc" },
+      take: 12,
+    }),
+    safeFindMany(prisma.rankChallenge, {
+      where: { regno: member.regno },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    safeFindMany(prisma.rankHistory, {
+      where: { regno: member.regno },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    safeFindMany(prisma.commission, {
+      where: { earnerRegno: member.regno },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+  ]);
+
+  return {
+    currentRank: member.rank?.rankName || "Member",
+    rankPercent: member.rank?.percentage || 0,
+    rank38AchievedAt: member.rank38AchievedAt || null,
+    licenses: {
+      totalConfigurablePool: Number(member.licensesRemaining || 0) + licenseHistory.filter((item) => item.giverRegno === member.regno).length,
+      remaining: member.licensesRemaining || 0,
+      history: licenseHistory,
+    },
+    gpg: {
+      available: Number(member.rank?.percentage || 0) === 38,
+      subscriptions: gpgSubscriptions,
+    },
+    rankChallenges,
+    rankHistory,
+    recentCommissions,
+  };
+};
+
 export const dashboard = async (user) => {
   const member = await memberByToken(user);
+  const now = new Date();
+  const currentMonth = monthRange(now);
+  const previousMonth = monthRange(now, -1);
+  const sevenMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
   const directMembers = await prisma.member.findMany({
     where: { sponsorId: member.regno },
-    include: { rank: true, panVerification: true },
+    include: {
+      rank: true,
+      panVerification: true,
+      orders: {
+        where: {
+          approvedStatus: 1,
+          saleDate: { gte: currentMonth.start, lt: currentMonth.end },
+        },
+      },
+    },
     orderBy: { createdAt: "desc" },
     take: 10,
   });
@@ -291,7 +407,77 @@ export const dashboard = async (user) => {
     where: { regno: member.regno, status: 1 },
     _sum: { netAmount: true },
   });
-  const balance = await walletBalance(member.regno);
+  const [
+    balance,
+    selfPv,
+    currentMonthEarnings,
+    previousMonthEarnings,
+    previousMonthDirectTeam,
+    recentCommissions,
+    commissionBreakdown,
+  ] = await Promise.all([
+    walletBalance(member.regno),
+    prisma.order.aggregate({
+      where: {
+        regno: member.regno,
+        approvedStatus: 1,
+        saleDate: { gte: currentMonth.start, lt: currentMonth.end },
+      },
+      _sum: { pv: true, bv: true },
+    }),
+    prisma.commission.aggregate({
+      where: { earnerRegno: member.regno, createdAt: { gte: currentMonth.start, lt: currentMonth.end } },
+      _sum: { amount: true },
+    }),
+    prisma.commission.aggregate({
+      where: { earnerRegno: member.regno, createdAt: { gte: previousMonth.start, lt: previousMonth.end } },
+      _sum: { amount: true },
+    }),
+    prisma.member.count({
+      where: {
+        sponsorId: member.regno,
+        createdAt: { gte: previousMonth.start, lt: previousMonth.end },
+      },
+    }),
+    prisma.commission.findMany({
+      where: { earnerRegno: member.regno, createdAt: { gte: sevenMonthsAgo } },
+      orderBy: { createdAt: "asc" },
+      select: { amount: true, createdAt: true },
+    }),
+    prisma.commission.groupBy({
+      by: ["type"],
+      where: { earnerRegno: member.regno },
+      _sum: { amount: true },
+    }),
+  ]);
+  const monthlyEarnings = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(now.getFullYear(), now.getMonth() - 6 + index, 1);
+    return { month: monthKey(date), earnings: 0 };
+  });
+  const monthlyByLabel = new Map(monthlyEarnings.map((item) => [item.month, item]));
+  recentCommissions.forEach((commission) => {
+    const label = monthKey(new Date(commission.createdAt));
+    const bucket = monthlyByLabel.get(label);
+    if (bucket) bucket.earnings += money(commission.amount);
+  });
+  const topDirectMembers = directMembers
+    .map((item) => ({
+      ...toPublicMember(item),
+      monthlyPv: item.orders.reduce((sum, order) => sum + money(order.pv ?? order.bv), 0),
+      monthlyBusiness: item.orders.reduce((sum, order) => sum + money(order.bv ?? order.totalAmount), 0),
+    }))
+    .sort((a, b) => b.monthlyBusiness - a.monthlyBusiness)
+    .slice(0, 5);
+  const breakdownTones = ["gold", "emerald", "rose", "ink"];
+  const earningsBreakdown = commissionBreakdown.map((item, index) => ({
+    label: item.type,
+    value: money(item._sum.amount),
+    tone: breakdownTones[index % breakdownTones.length],
+  }));
+  const directTeamCurrentMonth = directMembers.filter((item) => {
+    const createdAt = new Date(item.createdAt);
+    return createdAt >= currentMonth.start && createdAt < currentMonth.end;
+  }).length;
 
   return {
     user: toPublicMember(member),
@@ -302,9 +488,16 @@ export const dashboard = async (user) => {
       pendingWithdrawal: money(pendingPayout._sum.netAmount),
       directTeam: directMembers.length,
       totalTeamBusiness: money(downlineTotal._sum.businessAmount),
+      myPv: money(selfPv._sum.pv ?? selfPv._sum.bv),
+      totalTeamPv: money(downlineTotal._sum.businessAmount),
       currentRank: member.rank?.rankName || "Member",
+      earningsGrowth: percentageChange(money(currentMonthEarnings._sum.amount), money(previousMonthEarnings._sum.amount)),
+      directTeamGrowth: percentageChange(directTeamCurrentMonth, previousMonthDirectTeam),
     },
     recentReferrals: directMembers.map(toPublicMember),
+    topDirectMembers,
+    monthlyEarnings,
+    earningsBreakdown,
     recentPayouts: member.payouts.slice(0, 5),
     recentOrders: member.orders.slice(0, 5),
     licenses: member.pinsTransferredTo.map((transfer) => ({
@@ -323,6 +516,7 @@ export const dashboard = async (user) => {
       orderBy: { createdAt: "desc" },
       take: 5,
     }),
+    mlm: await mlmSummary(user),
   };
 };
 

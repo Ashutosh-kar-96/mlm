@@ -1,4 +1,5 @@
 import * as userService from "../services/user.service.js";
+import { subscribeGpg as subscribeGpgService } from "../services/rank.service.js";
 import { success } from "../utils/apiResponse.js";
 
 export const getUsers = async (req, res, next) => {
@@ -134,6 +135,22 @@ export const orders = async (req, res, next) => {
 export const commissions = async (req, res, next) => {
   try {
     success(res, await userService.myCommissions(req.user, req.query));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const mlmSummary = async (req, res, next) => {
+  try {
+    success(res, await userService.mlmSummary(req.user));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const subscribeGpg = async (req, res, next) => {
+  try {
+    success(res, await subscribeGpgService(req.user?.regno, req.body), 201);
   } catch (err) {
     next(err);
   }

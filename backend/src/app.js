@@ -3,6 +3,8 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 
 import adminRoutes from "./routes/admin.routes.js";
 import commerceRoutes from "./routes/commerce.routes.js";
@@ -21,6 +23,8 @@ import { errorHandler } from "./middlewares/error.middleware.js";
 dotenv.config();
 
 const app = express();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const uploadsDir = path.resolve(__dirname, "../uploads");
 
 app.use(helmet());
 const allowedOrigins = (process.env.CORS_ORIGIN || "")
@@ -40,6 +44,7 @@ app.use(cors({
 }));
 app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || "500mb" }));
 app.use(morgan("dev"));
+app.use("/uploads", express.static(uploadsDir));
 
 app.get("/api/health", (req, res) => {
   res.json({ success: true, message: "MLM backend is running" });

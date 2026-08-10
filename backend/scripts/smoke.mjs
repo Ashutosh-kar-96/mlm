@@ -74,7 +74,7 @@ const testRankLogic = async () => {
 
       await updateRanksForMembers(["SMOKERANK01"], undefined, tx);
       const upgraded = await tx.member.findUnique({ where: { regno: "SMOKERANK01" }, include: { rank: true } });
-      expect("rank logic 14% x 4 upgrades to 24%", upgraded?.rank?.percentage?.toString() === "24");
+      expect("Shopping 22500 promotes to Rank 24", upgraded?.rank?.percentage?.toString() === "24");
       throw rollback;
     });
   } catch (error) {
@@ -131,7 +131,7 @@ try {
   }
   const ranks = await request("/members/ranks", { token: adminToken });
   expectStatus("rank list", ranks.status, 200);
-  expect("rank list uses client percentages", ranks.payload.data.some((rank) => Number(rank.percentage) === 42));
+  expect("rank list uses Rank-38 spec", ranks.payload.data.some((rank) => Number(rank.percentage) === 38) && ranks.payload.data.some((rank) => Number(rank.percentage) === 0));
 
   const foreignTransfer = await prisma.pinTransfer.findFirst({
     where: { toRegno: { not: memberRegno }, pin: { usedStatus: false, activeStatus: true } },

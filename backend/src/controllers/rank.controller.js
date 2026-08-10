@@ -49,3 +49,43 @@ export const updateReward = async (req, res, next) => {
     next(err);
   }
 };
+
+export const gpgSubscriptions = async (req, res, next) => {
+  try {
+    success(res, await rankService.gpgSubscriptions(req.query));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateGpgApproval = async (req, res, next) => {
+  try {
+    success(res, await rankService.updateGpgApproval(req.params.id, req.body, req.user?.id));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const autoAssignGpg = async (req, res, next) => {
+  try {
+    success(res, await rankService.autoAssignGpg(req.body, req.user?.id));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const licenseUsages = async (req, res, next) => {
+  try {
+    success(res, await rankService.licenseUsages(req.query));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const rankChallenges = async (req, res, next) => {
+  try {
+    success(res, await rankService.rankChallenges(req.query));
+  } catch (err) {
+    next(err);
+  }
+};
