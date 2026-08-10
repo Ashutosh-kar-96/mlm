@@ -30,8 +30,8 @@ export function TRow({ children, className }) {
   )
 }
 
-export function TCell({ children, className }) {
-  return <td className={clsx('whitespace-nowrap px-4 py-3.5 text-ink-800', className)}>{children}</td>
+export function TCell({ children, className, ...props }) {
+  return <td className={clsx('whitespace-nowrap px-4 py-3.5 text-ink-800', className)} {...props}>{children}</td>
 }
 
 export function Pagination({ meta, page, limit, onPageChange, onLimitChange }) {

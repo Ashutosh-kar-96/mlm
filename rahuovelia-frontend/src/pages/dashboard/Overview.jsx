@@ -9,13 +9,17 @@ import { Badge, RankBadge } from '../../components/ui/Badge'
 import EarningsAreaChart from '../../components/charts/EarningsAreaChart'
 import EarningsDonut from '../../components/charts/EarningsDonut'
 import { Table, THead, TRow, TCell } from '../../components/ui/Table'
-import {
-  currentUser,
-  monthlyEarnings,
-  earningsBreakdown,
-} from '../../data/mockData'
+import { currentUser } from '../../data/mockData'
 import { useAuth } from '../../context/AuthContext'
 import { memberApi } from '../../lib/api'
+
+const emptyMonthlyEarnings = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'].map((month) => ({ month, earnings: 0 }))
+const emptyEarningsBreakdown = [
+  { label: 'Direct Differential', value: 0, tone: 'gold' },
+  { label: 'Rank Differential', value: 0, tone: 'emerald' },
+  { label: 'GPG Differential', value: 0, tone: 'rose' },
+  { label: 'Other Income', value: 0, tone: 'ink' },
+]
 
 export default function Overview() {
   usePageTitle('Overview', 'Your Rahuovelia business at a glance')
@@ -25,13 +29,16 @@ export default function Overview() {
   const apiUser = dashboard?.user || {}
   const profile = { ...currentUser, ...user, ...apiUser, id: apiUser.regno || user?.id || currentUser.id }
   const stats = dashboard?.stats || {}
+  const monthlyEarnings = dashboard?.monthlyEarnings?.length ? dashboard.monthlyEarnings : emptyMonthlyEarnings
+  const earningsBreakdown = dashboard?.earningsBreakdown?.length ? dashboard.earningsBreakdown : emptyEarningsBreakdown
+  const topDirectMembers = dashboard?.topDirectMembers || []
   const liveReferrals = dashboard?.recentReferrals
     ? dashboard.recentReferrals.map((item) => ({
         id: item.regno || item.id,
         name: item.name,
         joined: formatDate(item.joined),
         status: item.status === 1 ? 'Active' : item.status === 2 ? 'Blocked' : 'Unpaid',
-        earnings: 0,
+        earnings: Number(item.totalEarnings || 0),
       }))
     : []
 
@@ -72,9 +79,9 @@ export default function Overview() {
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Wallet Balance" value={stats.walletBalance ?? 0} prefix="₹" icon={Wallet} delay={0.05} />
-        <StatCard label="Total Earnings" value={stats.totalEarnings ?? 0} prefix="₹" icon={TrendingUp} delta={12.4} delay={0.1} />
-        <StatCard label="Direct Team" value={stats.directTeam ?? liveReferrals.length} icon={Users} delta={8.1} delay={0.15} />
-        <StatCard label="Current Rank" value={profile.rank} icon={Award} mono={false} delay={0.2} />
+        <StatCard label="Total Earnings" value={stats.totalEarnings ?? 0} prefix="₹" icon={TrendingUp} delta={stats.earningsGrowth ?? 0} delay={0.1} />
+        <StatCard label="Direct Team" value={stats.directTeam ?? liveReferrals.length} icon={Users} delta={stats.directTeamGrowth ?? 0} delay={0.15} />
+        <StatCard label="Current Rank" value={stats.currentRank || profile.rank} icon={Award} mono={false} delay={0.2} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-4">
@@ -94,13 +101,13 @@ export default function Overview() {
         <Card className="p-6" delay={0.2}>
           <ShoppingCart size={30} className="text-gold-600" />
           <p className="mt-4 text-xs text-ink-400">My PV</p>
-          <p className="font-mono text-xl font-semibold text-ink-950">0.00</p>
+          <p className="font-mono text-xl font-semibold text-ink-950">{Number(stats.myPv || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           <div className="mt-4 h-1 rounded-full bg-gold-300" />
         </Card>
         <Card className="p-6" delay={0.22}>
           <Users size={30} className="text-emerald-mlm" />
           <p className="mt-4 text-xs text-ink-400">Total Team PV</p>
-          <p className="font-mono text-xl font-semibold text-ink-950">0.00</p>
+          <p className="font-mono text-xl font-semibold text-ink-950">{Number(stats.totalTeamPv || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           <div className="mt-4 h-1 rounded-full bg-emerald-mlm" />
         </Card>
       </div>
@@ -113,15 +120,21 @@ export default function Overview() {
           <Table>
             <THead columns={['Regno', 'Name', 'Mobile No.', 'Rank', 'Status']} />
             <tbody>
-              <TRow>
-                <TCell className="font-mono text-xs text-ink-400">AF100109</TCell>
-                <TCell className="font-medium text-ink-950">RAHUL</TCell>
-                <TCell>6268676798</TCell>
-                <TCell>Advify Marquies</TCell>
-                <TCell>
-                  <Badge tone="success">Top Seller</Badge>
-                </TCell>
-              </TRow>
+              {topDirectMembers.length ? topDirectMembers.map((member) => (
+                <TRow key={member.regno || member.id}>
+                  <TCell className="font-mono text-xs text-ink-400">{member.regno || member.id}</TCell>
+                  <TCell className="font-medium text-ink-950">{member.name}</TCell>
+                  <TCell>{member.mobile || '-'}</TCell>
+                  <TCell>{member.rank || 'Member'}</TCell>
+                  <TCell>
+                    <Badge tone="success">₹{Number(member.monthlyBusiness || 0).toLocaleString('en-IN')}</Badge>
+                  </TCell>
+                </TRow>
+              )) : (
+                <TRow>
+                  <TCell colSpan={5} className="text-center text-ink-400">No seller activity this month</TCell>
+                </TRow>
+              )}
             </tbody>
           </Table>
         </div>

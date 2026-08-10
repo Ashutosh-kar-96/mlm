@@ -55,6 +55,7 @@ export const userLinks = [
       { to: '/dashboard/business/direct', label: 'My Direct', icon: Users },
       { to: '/dashboard/business/level-tree', label: 'My Level Tree', icon: Network },
       { to: '/dashboard/business/downline', label: 'My Downline', icon: FileText },
+      { to: '/dashboard/business/mlm-status', label: 'MLM Status', icon: BarChart3 },
     ],
   },
   {
@@ -159,6 +160,9 @@ export const adminLinks = [
       { to: '/admin/rank-setting/report', label: 'Set Rank Report', icon: FileText },
       { to: '/admin/rank-setting/plan', label: 'Plan Summary', icon: FileText },
       { to: '/admin/rank-setting/rewards', label: 'Reward Report', icon: CheckCircle2 },
+      { to: '/admin/rank-setting/gpg', label: 'GPG Approval', icon: CheckCircle2 },
+      { to: '/admin/rank-setting/licenses', label: 'License History', icon: KeyRound },
+      { to: '/admin/rank-setting/challenges', label: 'Rank 41 Challenge', icon: BarChart3 },
     ],
   },
   {

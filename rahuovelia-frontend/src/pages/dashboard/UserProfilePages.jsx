@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   Award,
+  BarChart3,
   BadgeCheck,
   Building2,
   CalendarDays,
@@ -214,6 +215,8 @@ function FileDrop({ label, helper, onFile }) {
     </label>
   )
 }
+
+const isNewUpload = (file) => String(file?.url || '').startsWith('data:')
 
 export function EditProfilePage() {
   return (
@@ -448,7 +451,7 @@ export function BankDetailsPage() {
     let alive = true
     memberApi.uploads(token, { type: 'bank_passbook' })
       .then((items) => {
-        if (alive && items[0]) setPreview({ name: items[0].fileName || items[0].fileUrl, type: '', url: '' })
+        if (alive && items[0]) setPreview({ name: items[0].fileName || items[0].fileUrl, type: '', url: items[0].fileUrl })
       })
       .catch(() => {})
     return () => {
@@ -463,8 +466,8 @@ export function BankDetailsPage() {
     setSaving(true)
     try {
       await memberApi.updateProfile(token, form)
-      if (preview?.name) {
-        await memberApi.createUpload(token, { type: 'bank_passbook', fileName: preview.name, status: 'Pending' })
+      if (isNewUpload(preview)) {
+        await memberApi.createUpload(token, { type: 'bank_passbook', fileName: preview.name, fileData: preview.url, status: 'Pending' })
       }
       toast.push('Bank details updated.', 'success')
     } catch (error) {
@@ -523,7 +526,7 @@ export function PanUploadPage() {
     let alive = true
     memberApi.uploads(token, { type: 'pan_card' })
       .then((items) => {
-        if (alive && items[0]) setPreview({ name: items[0].fileName || items[0].fileUrl, type: '', url: '' })
+        if (alive && items[0]) setPreview({ name: items[0].fileName || items[0].fileUrl, type: '', url: items[0].fileUrl })
       })
       .catch(() => {})
     return () => {
@@ -535,10 +538,10 @@ export function PanUploadPage() {
     event.preventDefault()
     setSaving(true)
     try {
-      await memberApi.submitKyc(token, { panNo, panImage: preview?.name })
-      if (preview?.name) {
-        await memberApi.createUpload(token, { type: 'pan_card', fileName: preview.name, status: 'Pending' })
-      }
+      const upload = isNewUpload(preview)
+        ? await memberApi.createUpload(token, { type: 'pan_card', fileName: preview.name, fileData: preview.url, status: 'Pending' })
+        : null
+      await memberApi.submitKyc(token, { panNo, panImage: upload?.fileUrl || preview?.url || preview?.name })
       toast.push('PAN details uploaded.', 'success')
     } catch (error) {
       toast.push(error.message, 'error')
@@ -588,8 +591,8 @@ export function AadhaarUploadPage() {
     ])
       .then(([front, back]) => {
         if (!alive) return
-        if (front[0]) setFrontPreview({ name: front[0].fileName || front[0].fileUrl, type: '', url: '' })
-        if (back[0]) setBackPreview({ name: back[0].fileName || back[0].fileUrl, type: '', url: '' })
+        if (front[0]) setFrontPreview({ name: front[0].fileName || front[0].fileUrl, type: '', url: front[0].fileUrl })
+        if (back[0]) setBackPreview({ name: back[0].fileName || back[0].fileUrl, type: '', url: back[0].fileUrl })
       })
       .catch(() => {})
     return () => {
@@ -602,11 +605,11 @@ export function AadhaarUploadPage() {
     setSaving(true)
     try {
       await memberApi.submitKyc(token, { aadhaarNo })
-      if (frontPreview?.name) {
-        await memberApi.createUpload(token, { type: 'aadhaar_front', fileName: frontPreview.name, status: 'Pending' })
+      if (isNewUpload(frontPreview)) {
+        await memberApi.createUpload(token, { type: 'aadhaar_front', fileName: frontPreview.name, fileData: frontPreview.url, status: 'Pending' })
       }
-      if (backPreview?.name) {
-        await memberApi.createUpload(token, { type: 'aadhaar_back', fileName: backPreview.name, status: 'Pending' })
+      if (isNewUpload(backPreview)) {
+        await memberApi.createUpload(token, { type: 'aadhaar_back', fileName: backPreview.name, fileData: backPreview.url, status: 'Pending' })
       }
       toast.push('Aadhaar details uploaded.', 'success')
     } catch (error) {
@@ -942,7 +945,51 @@ function TreePerson({ id, name, muted = false }) {
   )
 }
 
+function LevelTreeNode({ node, depth = 0 }) {
+  const children = node.children || []
+
+  return (
+    <div className="flex flex-col items-center">
+      <TreePerson id={node.id || '-'} name={node.name || 'Member'} muted={depth > 1} />
+      {children.length > 0 && (
+        <>
+          <div className="mt-7 h-px w-56 bg-ink-900/20" />
+          <div className="grid grid-cols-1 gap-5 pt-5 sm:grid-cols-2 lg:grid-cols-3">
+            {children.map((child) => (
+              <LevelTreeNode key={child.id} node={child} depth={depth + 1} />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 export function LevelTreePage() {
+  const { token } = useAuth()
+  const [network, setNetwork] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    setError('')
+    memberApi.network(token)
+      .then((data) => {
+        if (alive) setNetwork(data)
+      })
+      .catch(() => {
+        if (alive) setError('Unable to load level tree')
+      })
+      .finally(() => {
+        if (alive) setLoading(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [token])
+
   return (
     <PageShell
       title="Level Tree"
@@ -956,30 +1003,23 @@ export function LevelTreePage() {
       }
     >
       <Card className="overflow-x-auto p-8" animate={false}>
-        <div className="min-w-[860px]">
-          <div className="flex justify-center">
-            <TreePerson id={member.id} name={member.firstName} />
+        {loading ? (
+          <p className="rounded-xl border border-ink-900/8 bg-ivory-100 p-6 text-center text-sm text-ink-400">
+            Loading level tree...
+          </p>
+        ) : error ? (
+          <p className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-center text-sm text-rose-600">
+            {error}
+          </p>
+        ) : network?.tree ? (
+          <div className="min-w-[860px]">
+            <LevelTreeNode node={network.tree} />
           </div>
-          <div className="mx-auto mt-8 h-px w-[560px] bg-gold-300/70" />
-          <div className="mx-auto h-8 w-px bg-gold-300/70" />
-          <div className="grid grid-cols-3 gap-12">
-            {[
-              ['AF1001155', 'Saraswati'],
-              ['AF1001170', 'Niraj'],
-              ['AF1001178', 'Deepanshu'],
-            ].map(([id, name]) => (
-              <div key={id} className="flex flex-col items-center">
-                <TreePerson id={id} name={name} />
-                <div className="mt-7 h-px w-56 bg-ink-900/20" />
-                <div className="grid grid-cols-3 gap-5 pt-5">
-                  <TreePerson id="AF1001189" name="Jamuna" muted />
-                  <TreePerson id="AF1001198" name="Suraj" muted />
-                  <TreePerson id="Blank" name="Open" muted />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        ) : (
+          <p className="rounded-xl border border-dashed border-ink-900/12 bg-ivory-100 p-6 text-center text-sm text-ink-400">
+            No level tree found
+          </p>
+        )}
       </Card>
     </PageShell>
   )
@@ -1149,6 +1189,115 @@ export function LicensePage({ used = false }) {
   )
 }
 
+export function MlmStatusPage() {
+  const { token } = useAuth()
+  const toast = useToast()
+  const [summary, setSummary] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const latestGpg = summary?.gpg?.subscriptions?.[0]
+  const activeChallenge = summary?.rankChallenges?.[0]
+
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    memberApi.mlmSummary(token)
+      .then((data) => {
+        if (alive) setSummary(data)
+      })
+      .catch((error) => {
+        if (alive) setSummary({ error: error.message || 'Unable to load MLM status' })
+      })
+      .finally(() => {
+        if (alive) setLoading(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [token])
+
+  const subscribe = async () => {
+    try {
+      const subscription = await memberApi.subscribeGpg(token)
+      setSummary((current) => ({
+        ...current,
+        gpg: {
+          ...(current?.gpg || {}),
+          subscriptions: [subscription, ...(current?.gpg?.subscriptions || []).filter((item) => item.id !== subscription.id)],
+        },
+      }))
+      toast.push('GPG subscription submitted for admin approval.', 'success')
+    } catch (error) {
+      toast.push(error.message, 'error')
+    }
+  }
+
+  return (
+    <PageShell title="MLM Status" subtitle="Rank, GPG, license and challenge status" icon={BarChart3}>
+      {loading ? (
+        <Card className="p-6 text-center text-sm text-ink-400" animate={false}>Loading MLM status...</Card>
+      ) : summary?.error ? (
+        <Card className="p-6 text-center" animate={false}>
+          <p className="text-sm font-medium text-rose-600">{summary.error}</p>
+          <p className="mt-2 text-xs text-ink-400">Restart the backend and apply the latest Prisma migration if this page was just added.</p>
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card className="p-5" animate={false}>
+              <p className="text-xs font-medium uppercase tracking-wide text-ink-400">Current Rank</p>
+              <p className="mt-2 font-display text-2xl font-semibold text-ink-950">{summary?.currentRank || '-'}</p>
+              <p className="font-mono text-xs text-gold-700">{summary?.rankPercent || 0}%</p>
+            </Card>
+            <Card className="p-5" animate={false}>
+              <p className="text-xs font-medium uppercase tracking-wide text-ink-400">Licenses Remaining</p>
+              <p className="mt-2 font-display text-2xl font-semibold text-ink-950">{summary?.licenses?.remaining || 0}</p>
+            </Card>
+            <Card className="p-5" animate={false}>
+              <p className="text-xs font-medium uppercase tracking-wide text-ink-400">GPG Status</p>
+              <p className="mt-2 font-display text-xl font-semibold text-ink-950">{latestGpg?.approvalStatus || (summary?.gpg?.available ? 'Available' : 'Not Available')}</p>
+              <p className="text-xs text-ink-400">{latestGpg?.subscribedAt ? new Date(latestGpg.subscribedAt).toLocaleString('en-IN') : '-'}</p>
+            </Card>
+            <Card className="p-5" animate={false}>
+              <p className="text-xs font-medium uppercase tracking-wide text-ink-400">Rank 41 Challenge</p>
+              <p className="mt-2 font-display text-xl font-semibold text-ink-950">{activeChallenge?.status || '-'}</p>
+              <p className="font-mono text-xs text-gold-700">{money(activeChallenge?.currentBv)} / {money(activeChallenge?.requiredBv)} BV</p>
+            </Card>
+          </div>
+
+          {summary?.gpg?.available && (
+            <Card className="flex flex-wrap items-center justify-between gap-4 p-5" animate={false}>
+              <div>
+                <h3 className="font-display text-xl font-semibold text-ink-950">GPG Subscription</h3>
+                <p className="text-sm text-ink-400">Admin approval is required before GPG slots are paid.</p>
+              </div>
+              <Button variant="gold" onClick={subscribe}>Subscribe Current Cycle</Button>
+            </Card>
+          )}
+
+          <Card className="overflow-hidden p-0" animate={false}>
+            <div className="border-b border-ink-900/8 px-5 py-4">
+              <h3 className="font-display text-xl font-semibold text-ink-950">Rank History</h3>
+            </div>
+            <Table>
+              <THead columns={['Date', 'Old Rank', 'New Rank', 'Reason']} />
+              <tbody>
+                {(summary?.rankHistory || []).map((item) => (
+                  <TRow key={item.id}>
+                    <TCell>{formatDate(item.createdAt)}</TCell>
+                    <TCell>{item.oldRankName || '-'}</TCell>
+                    <TCell>{item.newRankName || '-'}</TCell>
+                    <TCell>{item.promotionReason || '-'}</TCell>
+                  </TRow>
+                ))}
+              </tbody>
+            </Table>
+          </Card>
+        </div>
+      )}
+    </PageShell>
+  )
+}
+
 export function PayoutStatementPage() {
   const { token } = useAuth()
   const toast = useToast()
@@ -1303,7 +1452,28 @@ export function AddFundPage() {
   const { token, user } = useAuth()
   const toast = useToast()
   const [amount, setAmount] = useState('')
+  const [walletRows, setWalletRows] = useState([])
   const [saving, setSaving] = useState(false)
+  const walletBalance = walletRows.reduce((sum, row) => sum + Number(row.amount || 0), 0)
+
+  const loadWallet = () =>
+    memberApi.walletLedger(token)
+      .then((data) => setWalletRows(data.items || []))
+      .catch(() => setWalletRows([]))
+
+  useEffect(() => {
+    let alive = true
+    memberApi.walletLedger(token)
+      .then((data) => {
+        if (alive) setWalletRows(data.items || [])
+      })
+      .catch(() => {
+        if (alive) setWalletRows([])
+      })
+    return () => {
+      alive = false
+    }
+  }, [token])
 
   const submit = async (event) => {
     event.preventDefault()
@@ -1312,6 +1482,7 @@ export function AddFundPage() {
       await memberApi.addFund(token, { amount: Number(amount) })
       toast.push('Fund added successfully.', 'success')
       setAmount('')
+      await loadWallet()
     } catch (error) {
       toast.push(error.message, 'error')
     } finally {
@@ -1331,14 +1502,14 @@ export function AddFundPage() {
             <Input label="Payment User ID" value={user?.id || member.id} readOnly />
             <Input label="Full Name" value={user?.name || member.name} readOnly />
             <Input label="Amount" placeholder="Enter amount" icon={IndianRupee} value={amount} onChange={(event) => setAmount(event.target.value)} />
-            <Button type="submit" variant="gold" fullWidth loading={saving}>Confirm Order</Button>
+            <Button type="submit" variant="gold" fullWidth loading={saving} disabled>Confirm Order</Button>
           </form>
         </Card>
         <Card className="relative overflow-hidden bg-ink-950 p-6 text-gold-100" animate={false}>
           <div className="absolute -right-12 -top-14 h-40 w-40 rounded-full bg-gold-400/15 blur-3xl" />
           <Wallet size={32} className="relative text-gold-300" />
           <p className="relative mt-6 text-xs uppercase tracking-[0.22em] text-gold-500">Shopping Wallet</p>
-          <p className="relative mt-2 font-mono text-4xl font-semibold">₹0</p>
+          <p className="relative mt-2 font-mono text-4xl font-semibold">₹{walletBalance.toLocaleString('en-IN')}</p>
           <p className="relative mt-3 text-sm text-ink-400">Use wallet balance for faster checkout.</p>
         </Card>
       </div>
@@ -1459,13 +1630,13 @@ export function PaymentMethodPage() {
             <h3 className="mt-2 font-display text-2xl font-semibold text-gold-100">Choose Payment Method</h3>
           </div>
           <div className="space-y-4 p-6">
-            <Button variant="gold" fullWidth size="lg" icon={CreditCard} loading={savingMode === 'Online'} onClick={() => pay('Online')}>
+            <Button variant="gold" fullWidth size="lg" icon={CreditCard} disabled title="Online payment is disabled for now">
               Pay Online
             </Button>
             <Button variant="primary" fullWidth size="lg" icon={Wallet} loading={savingMode === 'Wallet'} onClick={() => pay('Wallet')}>
               Pay from Wallet
             </Button>
-            <p className="text-center text-xs text-ink-400">Secure payment gateway and encrypted wallet transaction.</p>
+            <p className="text-center text-xs text-ink-400">Online payment is disabled for now. Please use wallet payment.</p>
           </div>
         </Card>
       </div>
@@ -1584,10 +1755,10 @@ const demoShopProducts = [
 
 export function CartCheckoutPage() {
   const { token, user } = useAuth()
-  const toast = useToast()
+  const navigate = useNavigate()
   const [items, setItems] = useState([])
   const [shipping, setShipping] = useState({ shipAddress: '', shipCity: '', shipState: '', shipPincode: '', shipMobile: '' })
-  const [saving, setSaving] = useState(false)
+  const [saving] = useState(false)
 
   const loadCart = useCallback(() => {
     memberApi.cart(token)
@@ -1610,17 +1781,8 @@ export function CartCheckoutPage() {
     }
   }, { subtotal: 0, gst: 0, total: 0 })
 
-  const checkout = async () => {
-    setSaving(true)
-    try {
-      await memberApi.checkout(token, { ...shipping, shipMobile: shipping.shipMobile || user?.mobile, paymentMode: 'Online' })
-      toast.push('Order placed successfully.', 'success')
-      loadCart()
-    } catch (error) {
-      toast.push(error.message, 'error')
-    } finally {
-      setSaving(false)
-    }
+  const checkout = () => {
+    navigate('/dashboard/orders/payment')
   }
 
   return (
@@ -2066,6 +2228,7 @@ export default function UserProfileRouter() {
     '/dashboard/business/direct': <DirectDownlinePage />,
     '/dashboard/business/level-tree': <LevelTreePage />,
     '/dashboard/business/downline': <DownlineReportPage />,
+    '/dashboard/business/mlm-status': <MlmStatusPage />,
     '/dashboard/license/activation': <LicensePage />,
     '/dashboard/license/used': <LicensePage used />,
     '/dashboard/payout/statement': <PayoutStatementPage />,

@@ -276,6 +276,33 @@ const pageConfigs = {
     columns: ['Regno', 'Name', 'Rank', 'Percent', 'Self BV', 'Team BV', 'Reward Claims'],
     rows: [],
   },
+  '/admin/rank-setting/gpg': {
+    title: 'GPG Approval',
+    subtitle: 'Review Rank-38 and Rank-41 GPG subscriptions with exact date and time',
+    searchTitle: 'Search GPG',
+    filters: ['Reg No./Name', 'Rank', 'Cycle'],
+    reportTitle: 'GPG Subscription Approval',
+    columns: ['Cycle', 'Regno', 'Name', 'Rank', 'Subscribed At', 'Status', 'Mode', 'Position', 'GPG %', 'Assigned At', 'Action'],
+    rows: [],
+  },
+  '/admin/rank-setting/licenses': {
+    title: 'License History',
+    subtitle: 'Audit Rank-24 and Rank-29 license usage',
+    searchTitle: 'Search License',
+    filters: ['Reg No./Name', 'From Date', 'To Date'],
+    reportTitle: 'License Usage History',
+    columns: ['Date', 'Giver', 'Giver Rank', 'Receiver', 'Previous Rank', 'New Rank', 'Sequence', 'Reference'],
+    rows: [],
+  },
+  '/admin/rank-setting/challenges': {
+    title: 'Rank 41 Challenge',
+    subtitle: 'Track active Rank-41 challenge infrastructure for Rank-38 members',
+    searchTitle: 'Search Challenge',
+    filters: ['Reg No./Name', 'From Date', 'To Date'],
+    reportTitle: 'Rank 41 Challenge Status',
+    columns: ['Regno', 'Name', 'Status', 'Started', 'Ends', 'Current BV', 'Required BV', 'Completed At'],
+    rows: [],
+  },
   '/admin/utility-desk/member-help-desk': {
     title: 'Member Help Desk',
     subtitle: 'Reply to member support messages and manage open requests',
@@ -368,6 +395,8 @@ const fallbackConfig = {
 
 const statusTone = {
   Pending: 'gold',
+  Approved: 'success',
+  Rejected: 'danger',
   Verified: 'success',
   Ready: 'success',
   Active: 'success',
@@ -664,6 +693,48 @@ const liveConfigs = {
       },
     ]),
   },
+  '/admin/rank-setting/gpg': {
+    load: (token, params) => adminApi.gpgSubscriptions(token, params),
+    rows: (data) => data.items.map((item) => [
+      item.cycleKey,
+      item.regno,
+      memberName(item.member),
+      item.member?.rank?.rankName || '-',
+      item.subscribedAt ? new Date(item.subscribedAt).toLocaleString('en-IN') : '-',
+      item.approvalStatus,
+      item.assignmentMode || '-',
+      item.accessNumber ? `#${item.accessNumber}` : '-',
+      item.accessPercentage ? `${asMoney(item.accessPercentage)}%` : '0%',
+      item.assignedAt ? new Date(item.assignedAt).toLocaleString('en-IN') : '-',
+      { type: 'gpgAction', subscription: item },
+    ]),
+  },
+  '/admin/rank-setting/licenses': {
+    load: (token, params) => adminApi.licenseUsages(token, params),
+    rows: (data) => data.items.map((item) => [
+      item.createdAt ? new Date(item.createdAt).toLocaleString('en-IN') : '-',
+      item.giverRegno,
+      asMoney(item.giverRankAtTime),
+      item.receiverRegno,
+      asMoney(item.receiverPreviousRank),
+      asMoney(item.receiverNewRank),
+      item.licenseSequence,
+      item.referenceId,
+    ]),
+  },
+  '/admin/rank-setting/challenges': {
+    load: (token, params) => adminApi.rankChallenges(token, params),
+    rows: (data) => data.items.map((item) => [
+      item.regno,
+      memberName(item.member),
+      item.status,
+      asDate(item.startedAt),
+      asDate(item.endsAt),
+      asMoney(item.currentBv),
+      asMoney(item.requiredBv),
+      asDate(item.completedAt),
+    ]),
+  },
   '/admin/utility-desk/member-help-desk': {
     load: (token, params) => adminApi.helpDesk(token, params),
     rows: (data) => data.items.map((item) => [
@@ -700,6 +771,8 @@ const filterParams = (values = {}) => {
     else if (key.includes('to') || key.includes('date to')) params.toDate = clean
     else if (key.includes('mobile')) params.mobile = clean
     else if (key.includes('pin value') || key.includes('plan') || key.includes('pin type')) params.pinValue = clean
+    else if (key === 'rank') params.rank = clean
+    else if (key === 'cycle') params.cycleKey = clean
     else if (key.includes('downline')) params.downlineRegno = clean
     else if (key.includes('order')) params.orderId = clean
     else if (key.includes('name') && key.includes('reg')) params.q = clean
@@ -1064,7 +1137,32 @@ function RewardClaimActions({ action, onRewardStatusAction }) {
   )
 }
 
-function ReportTable({ config, onPanAction, onMemberStatusAction, onSupportSelect, onSupportDelete, onRewardStatusAction }) {
+function GpgActionButtons({ action, onGpgStatusAction }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      <Button
+        type="button"
+        size="sm"
+        variant="gold"
+        disabled={action.subscription?.approvalStatus === 'Approved'}
+        onClick={() => onGpgStatusAction(action.subscription, 'Approved')}
+      >
+        Manual Assign
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="danger"
+        disabled={action.subscription?.approvalStatus === 'Rejected'}
+        onClick={() => onGpgStatusAction(action.subscription, 'Rejected')}
+      >
+        Reject
+      </Button>
+    </div>
+  )
+}
+
+function ReportTable({ config, onPanAction, onMemberStatusAction, onSupportSelect, onSupportDelete, onRewardStatusAction, onGpgStatusAction }) {
   return (
     <Card className="overflow-hidden p-0 shadow-sm" animate={false}>
       <div className="flex flex-wrap items-center gap-2 border-b border-ink-900/8 bg-white px-5 py-4">
@@ -1086,6 +1184,7 @@ function ReportTable({ config, onPanAction, onMemberStatusAction, onSupportSelec
                   const isMemberAction = cell?.type === 'memberEdit' || cell?.type === 'memberStatus'
                   const isSupportAction = cell?.type === 'supportShow' || cell?.type === 'supportDelete'
                   const isRewardAction = cell?.type === 'rewardClaims'
+                  const isGpgAction = cell?.type === 'gpgAction'
 
                   return (
                     <TCell
@@ -1108,7 +1207,9 @@ function ReportTable({ config, onPanAction, onMemberStatusAction, onSupportSelec
                         />
                       ) : isRewardAction ? (
                         <RewardClaimActions action={cell} onRewardStatusAction={onRewardStatusAction} />
-                      ) : cell === 'Pending' || cell === 'Verified' || cell === 'Ready' ? (
+                      ) : isGpgAction ? (
+                        <GpgActionButtons action={cell} onGpgStatusAction={onGpgStatusAction} />
+                      ) : cell === 'Pending' || cell === 'Verified' || cell === 'Ready' || cell === 'Approved' || cell === 'Rejected' ? (
                         <Badge tone={statusTone[cell]}>{cell}</Badge>
                       ) : isRegNo ? (
                         <Link
@@ -1142,6 +1243,7 @@ export default function AdminModulePage() {
   const [confirmAction, setConfirmAction] = useState(null)
   const [memberStatusAction, setMemberStatusAction] = useState(null)
   const [rewardStatusAction, setRewardStatusAction] = useState(null)
+  const [gpgStatusAction, setGpgStatusAction] = useState(null)
   const [selectedTicket, setSelectedTicket] = useState(null)
   const [viewingTicket, setViewingTicket] = useState(null)
   const [utilityValues, setUtilityValues] = useState({})
@@ -1276,6 +1378,54 @@ export default function AdminModulePage() {
     }
   }
 
+  const handleGpgStatusAction = (subscription, status) => {
+    setGpgStatusAction({ subscription, status })
+  }
+
+  const closeGpgStatusConfirm = () => {
+    if (!savingAction) setGpgStatusAction(null)
+  }
+
+  const confirmGpgStatusAction = async () => {
+    if (!gpgStatusAction?.subscription?.id) return
+
+    setSavingAction(true)
+    try {
+      const updated = await adminApi.updateGpgSubscription(token, gpgStatusAction.subscription.id, {
+        status: gpgStatusAction.status,
+      })
+      setLiveRows((rows) => rows?.map((row) => row.map((cell) => {
+        if (cell?.type !== 'gpgAction' || cell.subscription.id !== updated.id) return cell
+        return { ...cell, subscription: { ...cell.subscription, ...updated } }
+      }).map((cell) => {
+        if (cell === gpgStatusAction.subscription.approvalStatus) return updated.approvalStatus
+        return cell
+      })) || rows)
+      toast.push(`GPG subscription marked ${gpgStatusAction.status}.`, gpgStatusAction.status === 'Rejected' ? 'error' : 'success')
+      setGpgStatusAction(null)
+    } catch (error) {
+      toast.push(error.message, 'error')
+    } finally {
+      setSavingAction(false)
+    }
+  }
+
+  const autoAssignGpg = async (rank) => {
+    setSavingAction(true)
+    try {
+      const result = await adminApi.autoAssignGpg(token, {
+        rank,
+        cycleKey: searchParams.cycleKey,
+      })
+      toast.push(`Auto assigned ${result.assigned?.length || 0} Rank ${rank} GPG positions.`, 'success')
+      setSearchParams((current) => ({ ...current, rank: String(rank) }))
+    } catch (error) {
+      toast.push(error.message, 'error')
+    } finally {
+      setSavingAction(false)
+    }
+  }
+
   const showSupportTicket = (ticket) => {
     setViewingTicket(ticket)
     setSelectedTicket(ticket)
@@ -1361,6 +1511,7 @@ export default function AdminModulePage() {
           onSupportSelect={showSupportTicket}
           onSupportDelete={deleteSupportTicket}
           onRewardStatusAction={handleRewardStatusAction}
+          onGpgStatusAction={handleGpgStatusAction}
         />
         <Modal
           open={Boolean(viewingTicket)}
@@ -1394,6 +1545,22 @@ export default function AdminModulePage() {
     <>
       <div className="space-y-8">
         {config.searchTitle && <SearchPanel title={config.searchTitle} filters={config.filters} onSearch={handleSearch} />}
+        {pathname === '/admin/rank-setting/gpg' && (
+          <Card className="flex flex-wrap items-center justify-between gap-4 p-5" animate={false}>
+            <div>
+              <h3 className="font-display text-xl font-semibold text-ink-950">GPG Assignment</h3>
+              <p className="text-sm text-ink-400">Manual assignment is per member. Auto assignment selects the first five by exact subscription time.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="gold" disabled={savingAction} onClick={() => autoAssignGpg(38)}>
+                Auto Assign Rank 38
+              </Button>
+              <Button type="button" variant="primary" disabled={savingAction} onClick={() => autoAssignGpg(41)}>
+                Auto Assign Rank 41
+              </Button>
+            </div>
+          </Card>
+        )}
         <ReportTable
           config={config}
           onPanAction={handlePanAction}
@@ -1401,6 +1568,7 @@ export default function AdminModulePage() {
           onSupportSelect={showSupportTicket}
           onSupportDelete={deleteSupportTicket}
           onRewardStatusAction={handleRewardStatusAction}
+          onGpgStatusAction={handleGpgStatusAction}
         />
         {hasLiveConfig && (
           <Pagination
@@ -1488,6 +1656,33 @@ export default function AdminModulePage() {
           Update reward claim{' '}
           <span className="font-semibold text-ink-950">{rewardStatusAction?.claim?.rewardText}</span>
           {' '}to <span className="font-semibold text-ink-950">{rewardStatusAction?.status}</span>?
+        </p>
+      </Modal>
+      <Modal
+        open={Boolean(gpgStatusAction)}
+        onClose={closeGpgStatusConfirm}
+        title="Update GPG Approval"
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={closeGpgStatusConfirm} disabled={savingAction}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant={gpgStatusAction?.status === 'Rejected' ? 'danger' : 'gold'}
+              loading={savingAction}
+              onClick={confirmGpgStatusAction}
+            >
+              Yes, mark {gpgStatusAction?.status}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm leading-6 text-ink-500">
+          Update GPG subscription for{' '}
+          <span className="font-semibold text-ink-950">{gpgStatusAction?.subscription?.regno}</span>
+          {' '}in cycle <span className="font-semibold text-ink-950">{gpgStatusAction?.subscription?.cycleKey}</span>
+          {' '}to <span className="font-semibold text-ink-950">{gpgStatusAction?.status}</span>?
         </p>
       </Modal>
     </>

@@ -7,13 +7,13 @@ import Card from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Table, THead, TRow, TCell } from '../../components/ui/Table'
 import UserGrowthChart from '../../components/charts/UserGrowthChart'
-import { adminUserGrowth } from '../../data/mockData'
 import { adminShortcuts } from '../../data/navLinks'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { adminApi } from '../../lib/api'
 
 const emptyStats = { totalUsers: 0, activeUsers: 0, totalBusiness: 0, currentBusiness: 0, pendingPan: 0 }
+const emptyGrowth = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'].map((month) => ({ month, users: 0 }))
 
 export default function AdminOverview() {
   usePageTitle('Admin Overview', 'Platform-wide performance & activity')
@@ -37,6 +37,7 @@ export default function AdminOverview() {
   }, [token, toast])
 
   const stats = dashboard?.stats || emptyStats
+  const memberGrowth = dashboard?.memberGrowth?.length ? dashboard.memberGrowth : emptyGrowth
   const recentMembers = dashboard?.recentMembers?.length
     ? dashboard.recentMembers.map((member) => ({
         id: member.regno,
@@ -79,7 +80,7 @@ export default function AdminOverview() {
 
       <Card className="p-6" delay={0.25}>
         <h3 className="mb-2 font-display text-xl font-semibold text-ink-950">Member Growth</h3>
-        <UserGrowthChart data={adminUserGrowth} />
+        <UserGrowthChart data={memberGrowth} />
       </Card>
 
       <Card className="p-6" delay={0.3}>

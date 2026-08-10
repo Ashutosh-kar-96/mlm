@@ -111,6 +111,20 @@ export const adminApi = {
     return apiRequest(`/ranks/rewards${search ? `?${search}` : ''}`, { token })
   },
   updateReward: (token, id, body) => apiRequest(`/ranks/rewards/${id}`, { method: 'PATCH', token, body }),
+  gpgSubscriptions: (token, params = {}) => {
+    const search = queryString(params)
+    return apiRequest(`/ranks/gpg-subscriptions${search ? `?${search}` : ''}`, { token })
+  },
+  updateGpgSubscription: (token, id, body) => apiRequest(`/ranks/gpg-subscriptions/${id}`, { method: 'PATCH', token, body }),
+  autoAssignGpg: (token, body) => apiRequest('/ranks/gpg-subscriptions/auto-assign', { method: 'POST', token, body }),
+  licenseUsages: (token, params = {}) => {
+    const search = queryString(params)
+    return apiRequest(`/ranks/license-usages${search ? `?${search}` : ''}`, { token })
+  },
+  rankChallenges: (token, params = {}) => {
+    const search = queryString(params)
+    return apiRequest(`/ranks/rank-challenges${search ? `?${search}` : ''}`, { token })
+  },
   auditLogs: (token, params = {}) => {
     const search = queryString(params)
     return apiRequest(`/admin/audit-logs${search ? `?${search}` : ''}`, { token })
@@ -160,6 +174,8 @@ export const memberApi = {
     const search = queryString(params)
     return apiRequest(`/users/me/commissions${search ? `?${search}` : ''}`, { token })
   },
+  mlmSummary: (token) => apiRequest('/users/me/mlm', { token }),
+  subscribeGpg: (token, body = {}) => apiRequest('/users/me/gpg-subscriptions', { method: 'POST', token, body }),
   products: (token, params = {}) => {
     const search = queryString(params)
     return apiRequest(`/commerce/products${search ? `?${search}` : ''}`, { token })
