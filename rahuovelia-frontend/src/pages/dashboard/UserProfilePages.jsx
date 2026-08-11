@@ -20,6 +20,7 @@ import {
   Network,
   Phone,
   Plus,
+  Printer,
   ReceiptText,
   Search,
   Send,
@@ -83,6 +84,22 @@ function initials(name) {
     .map((part) => part[0])
     .join('')
     .toUpperCase() || 'M'
+}
+
+function printDocument(target) {
+  if (typeof window === 'undefined') return
+
+  const clearPrintTarget = () => {
+    delete document.body.dataset.printTarget
+    window.removeEventListener('afterprint', clearPrintTarget)
+  }
+
+  document.body.dataset.printTarget = target
+  window.addEventListener('afterprint', clearPrintTarget)
+  window.setTimeout(() => {
+    window.print()
+    window.setTimeout(clearPrintTarget, 500)
+  }, 50)
 }
 
 function profileDate(value, fallback) {
@@ -330,7 +347,7 @@ export function WelcomeLetterPage() {
           <div className="absolute right-8 top-8 opacity-10">
             <Award size={150} className="text-gold-700" />
           </div>
-          <div className="relative mx-auto max-w-3xl border border-gold-300/50 bg-ivory-50 p-8 text-center shadow-sm">
+          <div className="print-welcome-letter relative mx-auto max-w-3xl border border-gold-300/50 bg-ivory-50 p-8 text-center shadow-sm">
             <img src={logo} alt="Rahuovelia" className="mx-auto h-16 w-16 rounded-full object-cover" />
             <h3 className="mt-5 font-display text-4xl font-semibold text-ink-950">Welcome Letter</h3>
             <p className="mt-6 text-sm leading-7 text-ink-600">
@@ -353,7 +370,9 @@ export function WelcomeLetterPage() {
             </div>
             <p className="mt-8 font-display text-2xl font-semibold text-ink-950">Rahuovelia</p>
             <p className="text-xs text-ink-400">This is only a welcome letter, not a payment receipt.</p>
-            <Button className="mt-6" variant="gold">Print Letter</Button>
+            <Button className="no-print mt-6" variant="gold" icon={Printer} onClick={() => printDocument('welcome-letter')}>
+              Print Letter
+            </Button>
           </div>
         </div>
       </Card>
@@ -367,7 +386,7 @@ export function IdCardPage() {
   return (
     <PageShell title="My ID Card" subtitle="Your digital partner identity card" icon={IdCard}>
       <div className="flex flex-col items-center gap-6">
-        <div className="relative aspect-[1.62/1] w-full max-w-lg overflow-hidden rounded-2xl bg-ink-950 p-6 text-gold-100 shadow-2xl">
+        <div className="print-id-card relative aspect-[1.62/1] w-full max-w-lg overflow-hidden rounded-2xl bg-ink-950 p-6 text-gold-100 shadow-2xl">
           <div className="absolute -right-14 -top-20 h-56 w-56 rounded-full bg-gold-400/20 blur-3xl" />
           <div className="absolute bottom-0 right-0 h-full w-32 bg-gradient-to-br from-gold-400 via-rose-mlm to-ink-800 opacity-90" />
           <div className="relative z-10 flex h-full flex-col justify-between">
@@ -394,7 +413,9 @@ export function IdCardPage() {
             </div>
           </div>
         </div>
-        <Button variant="gold">Print ID Card</Button>
+        <Button className="no-print" variant="gold" icon={Printer} onClick={() => printDocument('id-card')}>
+          Print ID Card
+        </Button>
       </div>
     </PageShell>
   )

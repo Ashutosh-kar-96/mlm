@@ -159,7 +159,7 @@ export const adminLinks = [
       { to: '/admin/rank-setting/set-rank', label: 'Set Rank', icon: BarChart3 },
       { to: '/admin/rank-setting/report', label: 'Set Rank Report', icon: FileText },
       { to: '/admin/rank-setting/plan', label: 'Plan Summary', icon: FileText },
-      { to: '/admin/rank-setting/rewards', label: 'Reward Report', icon: CheckCircle2 },
+      { to: '/admin/rank-setting/rewards', label: 'Reward Report', icon: CheckCircle2, disabled: true },
       { to: '/admin/rank-setting/gpg', label: 'GPG Approval', icon: CheckCircle2 },
       { to: '/admin/rank-setting/licenses', label: 'License History', icon: KeyRound },
       { to: '/admin/rank-setting/challenges', label: 'Rank 41 Challenge', icon: BarChart3 },

@@ -47,23 +47,50 @@ function SidebarNavItem({ link, layoutIdPrefix }) {
         {open && (
           <div className="ml-5 mt-1 space-y-1 border-l border-gold-400/15 pl-2">
             {link.children.map((child) => (
-              <NavLink
-                key={child.to}
-                to={child.to}
-                className={({ isActive }) =>
-                  clsx(
-                    'flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
-                    isActive ? 'bg-gold-500/10 text-gold-100' : 'text-ink-400 hover:bg-white/[0.03] hover:text-gold-100'
-                  )
-                }
-              >
-                <child.icon size={14} strokeWidth={1.8} className="shrink-0" />
-                <span className="min-w-0 truncate">{child.label}</span>
-              </NavLink>
+              child.disabled ? (
+                <button
+                  key={child.to || child.label}
+                  type="button"
+                  disabled
+                  title="Disabled for now"
+                  className="flex w-full cursor-not-allowed items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-ink-500 opacity-50"
+                >
+                  <child.icon size={14} strokeWidth={1.8} className="shrink-0" />
+                  <span className="min-w-0 truncate">{child.label}</span>
+                </button>
+              ) : (
+                <NavLink
+                  key={child.to}
+                  to={child.to}
+                  className={({ isActive }) =>
+                    clsx(
+                      'flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
+                      isActive ? 'bg-gold-500/10 text-gold-100' : 'text-ink-400 hover:bg-white/[0.03] hover:text-gold-100'
+                    )
+                  }
+                >
+                  <child.icon size={14} strokeWidth={1.8} className="shrink-0" />
+                  <span className="min-w-0 truncate">{child.label}</span>
+                </NavLink>
+              )
             ))}
           </div>
         )}
       </div>
+    )
+  }
+
+  if (link.disabled) {
+    return (
+      <button
+        type="button"
+        disabled
+        title="Disabled for now"
+        className="group relative flex w-full cursor-not-allowed items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-sm font-medium text-ink-500 opacity-50"
+      >
+        <link.icon size={17} strokeWidth={1.8} className="relative z-10 shrink-0" />
+        <span className="relative z-10 min-w-0 truncate">{link.label}</span>
+      </button>
     )
   }
 

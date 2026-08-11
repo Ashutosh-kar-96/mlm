@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { CalendarDays, Check, ChevronDown, FileText, MessageSquareText, RotateCcw, Search, Send, SlidersHorizontal, X } from 'lucide-react'
+import { CalendarDays, Check, ChevronDown, FileText, MessageSquareText, Printer, RotateCcw, Search, Send, SlidersHorizontal, X } from 'lucide-react'
 import { usePageTitle } from '../../hooks/usePageTitle'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -270,6 +270,7 @@ const pageConfigs = {
   '/admin/rank-setting/rewards': {
     title: 'Reward Report',
     subtitle: 'Track reward eligibility from client handwritten plan',
+    disabled: true,
     searchTitle: 'Search Rewards',
     filters: ['Reg No./Name'],
     reportTitle: 'Reward Eligibility',
@@ -410,6 +411,74 @@ const statusTone = {
 const asMoney = (value) => Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const asDate = (value) => value ? new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'
 const memberName = (member) => [member?.firstName, member?.lastName].filter(Boolean).join(' ') || member?.username || member?.regno || '-'
+const escapeHtml = (value) => String(value ?? '-').replace(/[&<>"']/g, (char) => ({
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+}[char]))
+
+function printOrderBill(order) {
+  if (typeof window === 'undefined') return
+
+  const printWindow = window.open('', '_blank', 'width=900,height=700')
+  if (!printWindow) return
+
+  const rows = [
+    ['Order ID', order.orderId],
+    ['Reg No', order.regno],
+    ['Name', order.name],
+    ['PV', asMoney(order.pv)],
+    ['Total Amount', `Rs. ${asMoney(order.totalAmount)}`],
+    ['Sale Date', asDate(order.saleDate)],
+  ]
+
+  printWindow.document.write(`
+    <!doctype html>
+    <html>
+      <head>
+        <title>Order Bill ${escapeHtml(order.orderId)}</title>
+        <style>
+          * { box-sizing: border-box; }
+          body { margin: 0; padding: 32px; color: #101012; font-family: Arial, sans-serif; }
+          .bill { max-width: 760px; margin: 0 auto; border: 1px solid #d8c48a; padding: 28px; }
+          h1 { margin: 0; font-size: 28px; }
+          .brand { color: #9c7a1e; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+          .meta { margin-top: 6px; color: #6e6a72; font-size: 13px; }
+          table { width: 100%; margin-top: 28px; border-collapse: collapse; }
+          td { border-bottom: 1px solid #eee7d5; padding: 12px 8px; font-size: 14px; }
+          td:first-child { width: 190px; color: #6e6a72; font-weight: 700; text-transform: uppercase; font-size: 12px; }
+          .footer { margin-top: 28px; color: #6e6a72; font-size: 12px; }
+          @media print {
+            body { padding: 0; }
+            .bill { border: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="bill">
+          <div class="brand">Rahuovelia</div>
+          <h1>Order Bill</h1>
+          <p class="meta">Generated on ${escapeHtml(new Date().toLocaleString('en-IN'))}</p>
+          <table>
+            <tbody>
+              ${rows.map(([label, value]) => `<tr><td>${escapeHtml(label)}</td><td>${escapeHtml(value)}</td></tr>`).join('')}
+            </tbody>
+          </table>
+          <p class="footer">This bill is generated from the admin company business report.</p>
+        </div>
+        <script>
+          window.onload = () => {
+            window.print();
+            window.onafterprint = () => window.close();
+          };
+        </script>
+      </body>
+    </html>
+  `)
+  printWindow.document.close()
+}
 
 const memberRow = (member, index) => [
   String(index + 1),
@@ -467,7 +536,7 @@ const liveConfigs = {
       asMoney(order.pv),
       asMoney(order.totalAmount),
       asDate(order.saleDate),
-      order.billPath || 'Bill',
+      { type: 'billPrint', order },
     ]),
   },
   '/admin/company-business/downline': {
@@ -659,7 +728,7 @@ const liveConfigs = {
     rows: (data) => [
       ...data.ranks.map((rank) => [
         rank.rankName,
-        asMoney(rank.percentage),
+        asMoney(rank.baseRate ?? rank.percentage),
         asMoney(rank.selfShoppingAmount),
         asMoney(rank.criteriaBv),
         rank.levelNo ?? '-',
@@ -681,7 +750,7 @@ const liveConfigs = {
       item.regno,
       item.name || '-',
       item.rankName,
-      asMoney(item.rankPercent),
+      asMoney(item.earningPercent ?? item.rankPercent),
       asMoney(item.selfBv),
       asMoney(item.teamBv),
       {
@@ -1152,6 +1221,15 @@ function GpgActionButtons({ action, onGpgStatusAction }) {
       <Button
         type="button"
         size="sm"
+        variant="outline"
+        disabled={action.subscription?.approvalStatus !== 'Approved'}
+        onClick={() => onGpgStatusAction(action.subscription, 'Pending')}
+      >
+        Clear
+      </Button>
+      <Button
+        type="button"
+        size="sm"
         variant="danger"
         disabled={action.subscription?.approvalStatus === 'Rejected'}
         onClick={() => onGpgStatusAction(action.subscription, 'Rejected')}
@@ -1185,6 +1263,7 @@ function ReportTable({ config, onPanAction, onMemberStatusAction, onSupportSelec
                   const isSupportAction = cell?.type === 'supportShow' || cell?.type === 'supportDelete'
                   const isRewardAction = cell?.type === 'rewardClaims'
                   const isGpgAction = cell?.type === 'gpgAction'
+                  const isBillPrint = cell?.type === 'billPrint'
 
                   return (
                     <TCell
@@ -1209,6 +1288,10 @@ function ReportTable({ config, onPanAction, onMemberStatusAction, onSupportSelec
                         <RewardClaimActions action={cell} onRewardStatusAction={onRewardStatusAction} />
                       ) : isGpgAction ? (
                         <GpgActionButtons action={cell} onGpgStatusAction={onGpgStatusAction} />
+                      ) : isBillPrint ? (
+                        <Button type="button" size="sm" variant="outline" icon={Printer} onClick={() => printOrderBill(cell.order)}>
+                          Bill
+                        </Button>
                       ) : cell === 'Pending' || cell === 'Verified' || cell === 'Ready' || cell === 'Approved' || cell === 'Rejected' ? (
                         <Badge tone={statusTone[cell]}>{cell}</Badge>
                       ) : isRegNo ? (
@@ -1239,6 +1322,7 @@ export default function AdminModulePage() {
   const baseConfig = pageConfigs[pathname] || fallbackConfig
   const [liveRows, setLiveRows] = useState(null)
   const [searchParams, setSearchParams] = useState({})
+  const [liveData, setLiveData] = useState(null)
   const [meta, setMeta] = useState({ page: 1, limit: 25, total: 0 })
   const [confirmAction, setConfirmAction] = useState(null)
   const [memberStatusAction, setMemberStatusAction] = useState(null)
@@ -1250,7 +1334,8 @@ export default function AdminModulePage() {
   const [savingAction, setSavingAction] = useState(false)
   const { token } = useAuth()
   const toast = useToast()
-  const hasLiveConfig = Boolean(liveConfigs[pathname])
+  const pageDisabled = Boolean(baseConfig.disabled)
+  const hasLiveConfig = !pageDisabled && Boolean(liveConfigs[pathname])
   const config = hasLiveConfig ? { ...baseConfig, rows: liveRows || [] } : baseConfig
 
   usePageTitle(formConfig?.title || config.title, formConfig?.subtitle || config.subtitle)
@@ -1264,6 +1349,7 @@ export default function AdminModulePage() {
     const live = liveConfigs[pathname]
     if (!live || formConfig) {
       setLiveRows(null)
+      setLiveData(null)
       return
     }
 
@@ -1272,11 +1358,13 @@ export default function AdminModulePage() {
     live.load(token, { page: meta.page, limit: meta.limit, ...searchParams })
       .then((data) => {
         if (alive) setLiveRows(live.rows(data))
+        if (alive) setLiveData(data)
         if (alive) setMeta(data.meta || { page: meta.page, limit: meta.limit, total: live.rows(data).length })
       })
       .catch((error) => {
         toast.push(error.message, 'error')
         if (alive) setLiveRows([])
+        if (alive) setLiveData(null)
       })
     return () => {
       alive = false
@@ -1411,14 +1499,16 @@ export default function AdminModulePage() {
   }
 
   const autoAssignGpg = async (rank) => {
+    setSearchParams((current) => ({ ...current, rank: String(rank), cycleKey: current.cycleKey || liveData?.cycle?.key }))
     setSavingAction(true)
     try {
       const result = await adminApi.autoAssignGpg(token, {
         rank,
-        cycleKey: searchParams.cycleKey,
+        cycleKey: searchParams.cycleKey || liveData?.cycle?.key,
+        replaceExisting: true,
       })
       toast.push(`Auto assigned ${result.assigned?.length || 0} Rank ${rank} GPG positions.`, 'success')
-      setSearchParams((current) => ({ ...current, rank: String(rank) }))
+      setSearchParams((current) => ({ ...current, rank: String(rank), cycleKey: result.cycleKey || current.cycleKey }))
     } catch (error) {
       toast.push(error.message, 'error')
     } finally {
@@ -1489,6 +1579,22 @@ export default function AdminModulePage() {
     return <ActionForm config={formConfig} />
   }
 
+  if (pageDisabled) {
+    return (
+      <Card className="p-8" animate={false}>
+        <div className="flex flex-wrap items-start gap-4">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-100 text-gold-700">
+            <FileText size={18} />
+          </div>
+          <div>
+            <h3 className="font-display text-2xl font-semibold text-ink-950">{config.title}</h3>
+            <p className="mt-1 text-sm text-ink-500">This report is disabled for now.</p>
+          </div>
+        </div>
+      </Card>
+    )
+  }
+
   if (config.utility === 'member') {
     return (
       <div className="space-y-8">
@@ -1549,7 +1655,11 @@ export default function AdminModulePage() {
           <Card className="flex flex-wrap items-center justify-between gap-4 p-5" animate={false}>
             <div>
               <h3 className="font-display text-xl font-semibold text-ink-950">GPG Assignment</h3>
-              <p className="text-sm text-ink-400">Manual assignment is per member. Auto assignment selects the first five by exact subscription time.</p>
+              <p className="text-sm text-ink-400">Manual assignment is per member. Auto switches the selected rank/cycle to the first five by exact subscription time.</p>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-gold-700">
+                Cycle {searchParams.cycleKey || liveData?.cycle?.key || '-'}
+                {searchParams.rank ? ` · Rank ${searchParams.rank}` : ''}
+              </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="gold" disabled={savingAction} onClick={() => autoAssignGpg(38)}>

@@ -76,3 +76,51 @@ body {
     transition-duration: 0.001ms !important;
   }
 }
+
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  body {
+    background: #ffffff !important;
+  }
+
+  body[data-print-target] * {
+    visibility: hidden !important;
+  }
+
+  body[data-print-target] .no-print {
+    display: none !important;
+  }
+
+  body[data-print-target="welcome-letter"] .print-welcome-letter,
+  body[data-print-target="welcome-letter"] .print-welcome-letter *,
+  body[data-print-target="id-card"] .print-id-card,
+  body[data-print-target="id-card"] .print-id-card * {
+    visibility: visible !important;
+  }
+
+  body[data-print-target="welcome-letter"] .print-welcome-letter,
+  body[data-print-target="id-card"] .print-id-card {
+    position: fixed !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    box-shadow: none !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  body[data-print-target="welcome-letter"] .print-welcome-letter {
+    min-height: calc(100vh - 24mm) !important;
+    padding: 18mm !important;
+  }
+
+  body[data-print-target="id-card"] .print-id-card {
+    aspect-ratio: 1.62 / 1 !important;
+    width: 86mm !important;
+    height: auto !important;
+    border-radius: 6mm !important;
+  }
+}
