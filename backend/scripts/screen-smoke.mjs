@@ -11,6 +11,7 @@ const debugPort = Number(process.env.CDP_PORT || 47321);
 const publicRoutes = ["/login", "/register"];
 const routeFilter = process.env.ROUTE_FILTER || "";
 const matchesFilter = (route) => !routeFilter || route.includes(routeFilter);
+const fakeAuth = process.env.SMOKE_FAKE_AUTH === "1";
 
 const userRoutes = [
   "/dashboard",
@@ -242,10 +243,22 @@ const runGroup = async (label, routes, session) => {
 };
 
 const main = async () => {
-  const userLogin = await login("/users/auth/login", { identifier: "testuser", password: "123456" });
-  const adminLogin = await login("/admin/auth/login", { username: "Admin", password: "suraj@@@" });
-  const userSession = normalizeUser(userLogin, "user");
-  const adminSession = normalizeUser(adminLogin, "admin");
+  const userSession = fakeAuth
+    ? {
+        role: "user",
+        accessToken: "smoke-test-token",
+        refreshToken: "",
+        user: { id: "AF10020001", name: "Smoke Member", email: "", sponsor: "", rank: "Member", kyc: "Pending", role: "user" },
+      }
+    : normalizeUser(await login("/users/auth/login", { identifier: "testuser", password: "123456" }), "user");
+  const adminSession = fakeAuth
+    ? {
+        role: "admin",
+        accessToken: "smoke-test-token",
+        refreshToken: "",
+        user: { id: "ADMIN", name: "Admin", email: "", role: "admin" },
+      }
+    : normalizeUser(await login("/admin/auth/login", { username: "Admin", password: "suraj@@@" }), "admin");
 
   const userDataDir = await mkdtemp(join(tmpdir(), "mlm-screen-smoke-"));
   const browser = spawn(browserPath, [
