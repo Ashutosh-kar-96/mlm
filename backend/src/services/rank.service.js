@@ -9,6 +9,20 @@ const specialSequences = new Map([
   [38, [7, 4.5, 3, 2, 1]],
   [41, [8.25, 6.25, 4.5, 2.5, 1]],
 ]);
+
+const firstAvailableGpgSlot = async (tx, { cycleKey, rankLabel, excludeId }) => {
+  const assigned = await tx.gpgSubscription.findMany({
+    where: {
+      cycleKey,
+      rankLabel,
+      accessNumber: { not: null },
+      ...(excludeId ? { id: { not: Number(excludeId) } } : {}),
+    },
+    select: { accessNumber: true },
+  });
+  const used = new Set(assigned.map((item) => Number(item.accessNumber)));
+  return [1, 2, 3, 4, 5].find((slot) => !used.has(slot)) || null;
+};
 const parseSetting = async (keyName, fallback) => {
   const setting = await prisma.mlmSetting.findUnique({ where: { keyName } });
   if (!setting) return fallback;
@@ -172,6 +186,7 @@ export const rewards = async (query = {}) => {
       prisma.downlineBusiness.aggregate({ where: { regno: member.regno }, _sum: { businessAmount: true } }),
     ]);
     const rankPercent = money(member.rank?.percentage);
+    const earningPercent = money(member.rank?.baseRate ?? member.rank?.percentage);
     const selfBv = money(selfBusiness._sum.bv);
     const teamBv = money(teamBusiness._sum.businessAmount);
     const eligibleRewards = rewardPlan.filter((reward) => rankPercent >= money(reward.rankPercent));
@@ -185,6 +200,7 @@ export const rewards = async (query = {}) => {
       name: [member.firstName, member.lastName].filter(Boolean).join(" "),
       rankName: member.rank?.rankName || "Member",
       rankPercent,
+      earningPercent,
       selfBv,
       teamBv,
       rewards: rewardPlan.map((reward) => ({
@@ -348,24 +364,15 @@ export const updateGpgApproval = async (id, data = {}, adminId, client = prisma)
       error.status = 400;
       throw error;
     }
-    const approvedCount = status === "Approved"
-      ? await tx.gpgSubscription.count({
-        where: {
-          cycleKey: subscription.cycleKey,
-          approvalStatus: "Approved",
-          rankLabel,
-          accessNumber: { not: null },
-          id: { not: subscription.id },
-        },
-      })
-      : 0;
-    if (status === "Approved" && approvedCount >= sequence.length && !subscription.accessNumber) {
+    const nextAccessNumber = status === "Approved"
+      ? subscription.accessNumber || await firstAvailableGpgSlot(tx, { cycleKey: subscription.cycleKey, rankLabel, excludeId: subscription.id })
+      : null;
+    if (status === "Approved" && !nextAccessNumber) {
       const error = new Error("Only five paying GPG positions are allowed for this rank and cycle");
       error.status = 400;
       throw error;
     }
     const now = new Date();
-    const nextAccessNumber = subscription.accessNumber || approvedCount + 1;
     const updated = await tx.gpgSubscription.update({
       where: { id: subscription.id },
       data: {
@@ -393,7 +400,7 @@ export const updateGpgApproval = async (id, data = {}, adminId, client = prisma)
   return typeof client.$transaction === "function" ? client.$transaction(run) : run(client);
 };
 
-export const autoAssignGpg = async ({ rank, cycleKey }, adminId, client = prisma) => {
+export const autoAssignGpg = async ({ rank, cycleKey, replaceExisting = false }, adminId, client = prisma) => {
   const rankLabel = money(rank);
   const sequence = specialSequences.get(rankLabel);
   if (!sequence) {
@@ -411,10 +418,28 @@ export const autoAssignGpg = async ({ rank, cycleKey }, adminId, client = prisma
         accessNumber: { not: null },
       },
     });
-    if (existingAssignments > 0) {
+    if (existingAssignments > 0 && !replaceExisting) {
       const error = new Error("GPG assignments already exist for this rank and cycle. Auto assignment will not overwrite manual or previous assignments.");
       error.status = 400;
       throw error;
+    }
+    if (replaceExisting) {
+      await tx.gpgSubscription.updateMany({
+        where: {
+          cycleKey: cycle,
+          rankLabel,
+        },
+        data: {
+          approvalStatus: "Pending",
+          approvedAt: null,
+          approvedById: null,
+          rejectedAt: null,
+          accessNumber: null,
+          accessPercentage: null,
+          assignmentMode: null,
+          assignedAt: null,
+        },
+      });
     }
 
     const subscriptions = await tx.gpgSubscription.findMany({

@@ -9,6 +9,9 @@ const browserPath = process.env.BROWSER_PATH || "C:\\Program Files (x86)\\Micros
 const debugPort = Number(process.env.CDP_PORT || 47321);
 
 const publicRoutes = ["/login", "/register"];
+const routeFilter = process.env.ROUTE_FILTER || "";
+const matchesFilter = (route) => !routeFilter || route.includes(routeFilter);
+
 const userRoutes = [
   "/dashboard",
   "/dashboard/register-member",
@@ -39,7 +42,7 @@ const userRoutes = [
   "/dashboard/orders/payment",
   "/dashboard/orders/my-orders",
   "/dashboard/continue-shopping",
-];
+].filter(matchesFilter);
 const adminRoutes = [
   "/admin",
   "/admin/members",
@@ -75,7 +78,7 @@ const adminRoutes = [
   "/admin/utility-desk/member-help-desk",
   "/admin/utility-desk/message-to-dashboard",
   "/admin/products",
-];
+].filter(matchesFilter);
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 

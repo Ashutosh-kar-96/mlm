@@ -62,10 +62,18 @@ try {
   expect("gpg list includes cycle range", Boolean(listed.payload.data.cycle?.start && listed.payload.data.cycle?.end));
   expect("gpg list sorted by subscription time", listed.payload.data.items[0].regno === "DGPG381");
 
+  const manual = await request(`/ranks/gpg-subscriptions/${listed.payload.data.items[6].id}`, {
+    method: "PATCH",
+    token: adminToken,
+    body: { status: "Approved" },
+  });
+  expect("gpg manual assign endpoint", manual.status === 200);
+  expect("gpg manual assignment mode", manual.payload.data.assignmentMode === "MANUAL");
+
   const auto = await request("/ranks/gpg-subscriptions/auto-assign", {
     method: "POST",
     token: adminToken,
-    body: { rank: 38, cycleKey },
+    body: { rank: 38, cycleKey, replaceExisting: true },
   });
   expect("gpg auto assign endpoint", auto.status === 200);
   expect("gpg auto assigns five", auto.payload.data.assigned.length === 5);
