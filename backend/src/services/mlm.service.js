@@ -19,7 +19,7 @@ export const SHOPPING_PROMOTION_THRESHOLDS = [
 ];
 
 const DEFAULT_COMMISSION_PLAN = [
-  { rankLabel: 0, baseRate: 0, monthlyCap: null },
+  { rankLabel: 10, baseRate: 0, monthlyCap: null },
   { rankLabel: 14, baseRate: 4, monthlyCap: 4500 },
   { rankLabel: 19, baseRate: 9, monthlyCap: 9000 },
   { rankLabel: 24, baseRate: 24, monthlyCap: null },
@@ -122,7 +122,7 @@ export const walletBalance = async (regno, client = prisma) => {
 };
 
 export const assertNewcomerOrderLimit = (member, orderAmount) => {
-  if (rankPercent(member?.rank) !== 0 || money(orderAmount) <= NEWCOMER_SINGLE_ORDER_LIMIT) return;
+  if (rankPercent(member?.rank) !== 10 || money(orderAmount) <= NEWCOMER_SINGLE_ORDER_LIMIT) return;
 
   const error = new Error("Newcomer single order amount cannot exceed ₹10,000");
   error.status = 400;

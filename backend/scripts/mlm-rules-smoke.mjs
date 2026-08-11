@@ -177,8 +177,8 @@ try {
     await expectShoppingPromotion(tx, ids, 22500, 24);
     await expectShoppingPromotion(tx, ids, 38000, 29);
 
-    assert.doesNotThrow(() => assertNewcomerOrderLimit({ rank: { percentage: 0 } }, 10000));
-    assert.throws(() => assertNewcomerOrderLimit({ rank: { percentage: 0 } }, 10001), /Newcomer single order/);
+    assert.doesNotThrow(() => assertNewcomerOrderLimit({ rank: { percentage: 10 } }, 10000));
+    assert.throws(() => assertNewcomerOrderLimit({ rank: { percentage: 10 } }, 10001), /Newcomer single order/);
     assert.doesNotThrow(() => assertNewcomerOrderLimit({ rank: { percentage: 14 } }, 50000));
 
     assert.equal(cycleKey(new Date(2026, 7, 19)), "2026-07-20");

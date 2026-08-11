@@ -122,7 +122,10 @@ export const createMember = async (data) => {
     await validateSponsor(data.sponsorId);
     member = await prisma.$transaction(async (tx) => {
       const freeSignupRank = data.rankId ? null : await tx.rank.findFirst({
-        where: { rankName: "Free Signup", percentage: 0 },
+        where: {
+          rankName: "Free Signup",
+          OR: [{ percentage: 10 }, { percentage: 0 }],
+        },
         select: { id: true },
       });
       const created = await tx.member.create({

@@ -10,6 +10,23 @@ const specialSequences = new Map([
   [41, [8.25, 6.25, 4.5, 2.5, 1]],
 ]);
 
+const rankPercentByName = new Map([
+  ["Free Signup", 10],
+  ["Free Sign Up", 10],
+  ["Fashion Influencer", 14],
+  ["Vision Influencer", 19],
+  ["Promoter", 24],
+  ["Sales Executive", 29],
+  ["Junior Sales Executive", 38],
+  ["Senior Sales Executive", 41],
+  ["Zonal Sales Executive", 42],
+]);
+
+const normalizeRankName = (rankName) => {
+  const trimmed = String(rankName || "").trim();
+  return trimmed.replace(/\s+/g, " ");
+};
+
 const firstAvailableGpgSlot = async (tx, { cycleKey, rankLabel, excludeId }) => {
   const assigned = await tx.gpgSubscription.findMany({
     where: {
@@ -104,25 +121,43 @@ export const history = async (query = {}) => {
 };
 
 export const upgrade = async ({ regno, rankId, rankName, oldPercent, newPercent }, adminId) => {
-  const member = await prisma.member.findUnique({ where: { regno }, include: { rank: true } });
+  const normalizedRegno = String(regno || "").trim().toUpperCase();
+  const normalizedRankName = normalizeRankName(rankName);
+  const requestedPercent = rankPercentByName.get(normalizedRankName);
+  const member = await prisma.member.findUnique({ where: { regno: normalizedRegno }, include: { rank: true } });
   const rank = rankId
     ? await prisma.rank.findUnique({ where: { id: Number(rankId) } })
-    : await prisma.rank.findFirst({ where: { rankName: rankName || "" } });
-  if (!member || !rank) {
-    const error = new Error("Member or rank not found");
+    : requestedPercent === undefined
+      ? await prisma.rank.findFirst({ where: { rankName: normalizedRankName } })
+      : await prisma.rank.findFirst({
+        where: {
+          OR: [
+            { percentage: requestedPercent },
+            { rankName: normalizedRankName },
+          ],
+        },
+        orderBy: [{ levelNo: "asc" }, { id: "asc" }],
+      });
+  if (!member) {
+    const error = new Error(`Member ${normalizedRegno || "ID"} not found`);
+    error.status = 404;
+    throw error;
+  }
+  if (!rank) {
+    const error = new Error(`Rank ${normalizedRankName || "name"} not found`);
     error.status = 404;
     throw error;
   }
 
   return prisma.$transaction(async (tx) => {
-    await tx.member.update({ where: { regno }, data: { rankId: rank.id } });
+    await tx.member.update({ where: { regno: normalizedRegno }, data: { rankId: rank.id } });
     await grantRankLicenses({ ...member, rank }, rank, tx);
     if (money(rank.percentage) === 38) {
       await initializeRank38Facilities(member, new Date(), tx);
     }
     const history = await tx.rankHistory.create({
       data: {
-        regno,
+        regno: normalizedRegno,
         oldRankId: member.rankId,
         newRankId: rank.id,
         oldRankName: member.rank?.rankName,
@@ -134,7 +169,7 @@ export const upgrade = async ({ regno, rankId, rankName, oldPercent, newPercent 
         changedById: adminId ? Number(adminId) : undefined,
       },
     });
-    await logAudit(adminId, "rank.upgrade", "Member", regno, {
+    await logAudit(adminId, "rank.upgrade", "Member", normalizedRegno, {
       oldRank: member.rank?.rankName,
       newRank: rank.rankName,
     }, tx);

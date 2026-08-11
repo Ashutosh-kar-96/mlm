@@ -23,14 +23,14 @@ async function main() {
   });
 
   const ranks = [
-    { id: 8, rankName: "Free Signup", criteriaBv: 0, levelNo: 0, percentage: 0, baseRate: 0, monthlyCap: null, selfShoppingAmount: 0 },
-    { id: 1, rankName: "Rank 14", criteriaBv: 4500, levelNo: 1, percentage: 14, baseRate: 4, monthlyCap: 4500, selfShoppingAmount: 4500 },
-    { id: 2, rankName: "Rank 19", criteriaBv: 9000, levelNo: 2, percentage: 19, baseRate: 9, monthlyCap: 9000, selfShoppingAmount: 9000 },
-    { id: 3, rankName: "Rank 24", criteriaBv: 22500, levelNo: 3, percentage: 24, baseRate: 24, monthlyCap: null, selfShoppingAmount: 22500 },
-    { id: 4, rankName: "Rank 29", criteriaBv: 38000, levelNo: 4, percentage: 29, baseRate: 29, monthlyCap: null, selfShoppingAmount: 38000 },
-    { id: 5, rankName: "Rank 38", criteriaBv: 0, levelNo: 5, percentage: 38, baseRate: 38, monthlyCap: null, selfShoppingAmount: 0 },
-    { id: 6, rankName: "Rank 41", criteriaBv: 0, levelNo: 6, percentage: 41, baseRate: null, monthlyCap: null, selfShoppingAmount: 0 },
-    { id: 7, rankName: "Deprecated Rank 42", criteriaBv: 0, levelNo: 7, percentage: null, baseRate: null, monthlyCap: null, selfShoppingAmount: 0, challengeBusinessBv: null, challengeMonths: null },
+    { id: 8, rankName: "Free Signup", criteriaBv: 0, levelNo: 0, percentage: 10, baseRate: 0, monthlyCap: null, selfShoppingAmount: 0 },
+    { id: 1, rankName: "Fashion Influencer", criteriaBv: 4500, levelNo: 1, percentage: 14, baseRate: 4, monthlyCap: 4500, selfShoppingAmount: 4500 },
+    { id: 2, rankName: "Vision Influencer", criteriaBv: 9000, levelNo: 2, percentage: 19, baseRate: 9, monthlyCap: 9000, selfShoppingAmount: 9000 },
+    { id: 3, rankName: "Promoter", criteriaBv: 22500, levelNo: 3, percentage: 24, baseRate: 24, monthlyCap: null, selfShoppingAmount: 22500 },
+    { id: 4, rankName: "Sales Executive", criteriaBv: 38000, levelNo: 4, percentage: 29, baseRate: 29, monthlyCap: null, selfShoppingAmount: 38000 },
+    { id: 5, rankName: "Junior Sales Executive", criteriaBv: 0, levelNo: 5, percentage: 38, baseRate: 38, monthlyCap: null, selfShoppingAmount: 0 },
+    { id: 6, rankName: "Senior Sales Executive", criteriaBv: 0, levelNo: 6, percentage: 41, baseRate: null, monthlyCap: null, selfShoppingAmount: 0 },
+    { id: 7, rankName: "Zonal Sales Executive", criteriaBv: 0, levelNo: 7, percentage: 42, baseRate: null, monthlyCap: null, selfShoppingAmount: 0, challengeBusinessBv: null, challengeMonths: null },
   ];
 
   for (const rank of ranks) {
@@ -76,7 +76,7 @@ async function main() {
     where: { keyName: "commission_plan" },
     update: {
       valueJson: JSON.stringify([
-        { rankLabel: 0, baseRate: 0, monthlyCap: null },
+        { rankLabel: 10, baseRate: 0, monthlyCap: null },
         { rankLabel: 14, baseRate: 4, monthlyCap: 4500 },
         { rankLabel: 19, baseRate: 9, monthlyCap: 9000 },
         { rankLabel: 24, baseRate: 24, monthlyCap: null },
@@ -84,12 +84,12 @@ async function main() {
         { rankLabel: 38, baseRate: 38, monthlyCap: null },
         { rankLabel: 41, baseRate: 41, monthlyCap: null },
       ]),
-      description: "Rank differential unilevel compensation plan from Rank 0 through Rank 38.",
+      description: "Rank differential unilevel compensation plan from Free Signup through Junior Sales Executive.",
     },
     create: {
       keyName: "commission_plan",
       valueJson: JSON.stringify([
-        { rankLabel: 0, baseRate: 0, monthlyCap: null },
+        { rankLabel: 10, baseRate: 0, monthlyCap: null },
         { rankLabel: 14, baseRate: 4, monthlyCap: 4500 },
         { rankLabel: 19, baseRate: 9, monthlyCap: 9000 },
         { rankLabel: 24, baseRate: 24, monthlyCap: null },
@@ -97,7 +97,7 @@ async function main() {
         { rankLabel: 38, baseRate: 38, monthlyCap: null },
         { rankLabel: 41, baseRate: 41, monthlyCap: null },
       ]),
-      description: "Rank differential unilevel compensation plan from Rank 0 through Rank 38.",
+      description: "Rank differential unilevel compensation plan from Free Signup through Junior Sales Executive.",
     },
   });
 
@@ -105,12 +105,12 @@ async function main() {
     where: { keyName: "rank_cap_period" },
     update: {
       valueJson: JSON.stringify({ period: "MONTHLY" }),
-      description: "Configurable period for Rank 14 and Rank 19 earning caps. Business period is unconfirmed.",
+      description: "Configurable period for Fashion Influencer and Vision Influencer earning caps. Business period is unconfirmed.",
     },
     create: {
       keyName: "rank_cap_period",
       valueJson: JSON.stringify({ period: "MONTHLY" }),
-      description: "Configurable period for Rank 14 and Rank 19 earning caps. Business period is unconfirmed.",
+      description: "Configurable period for Fashion Influencer and Vision Influencer earning caps. Business period is unconfirmed.",
     },
   });
 
@@ -150,22 +150,22 @@ async function main() {
     where: { keyName: "reward_plan" },
     update: {
       valueJson: JSON.stringify([
-        { key: "rank-14-starter", rankPercent: 14, title: "Rank 14 Starter Reward", condition: "Rank 14 with self shopping BV", reward: "Fashion voucher test reward" },
-        { key: "rank-19-growth", rankPercent: 19, title: "Rank 19 Growth Reward", condition: "Rank 19 team growth", reward: "Silver gift test reward" },
-        { key: "rank-24-license", rankPercent: 24, title: "Rank 24 License Reward", condition: "Rank 24 license eligibility", reward: "10 license pool test reward" },
-        { key: "rank-29-leader", rankPercent: 29, title: "Rank 29 Leader Reward", condition: "Rank 29 leadership business", reward: "Gold bonus test reward" },
-        { key: "rank-38-gpg", rankPercent: 38, title: "Rank 38 GPG Reward", condition: "Rank 38 GPG eligibility", reward: "GPG access test reward" },
+        { key: "rank-14-starter", rankPercent: 14, title: "Fashion Influencer Starter Reward", condition: "Fashion Influencer with self shopping BV", reward: "Fashion voucher test reward" },
+        { key: "rank-19-growth", rankPercent: 19, title: "Vision Influencer Growth Reward", condition: "Vision Influencer team growth", reward: "Silver gift test reward" },
+        { key: "rank-24-license", rankPercent: 24, title: "Promoter License Reward", condition: "Promoter license eligibility", reward: "10 license pool test reward" },
+        { key: "rank-29-leader", rankPercent: 29, title: "Sales Executive Leader Reward", condition: "Sales Executive leadership business", reward: "Gold bonus test reward" },
+        { key: "rank-38-gpg", rankPercent: 38, title: "Junior Sales Executive GPG Reward", condition: "Junior Sales Executive GPG eligibility", reward: "GPG access test reward" },
       ]),
       description: "Demo reward plan for testing all visible rank reward states.",
     },
     create: {
       keyName: "reward_plan",
       valueJson: JSON.stringify([
-        { key: "rank-14-starter", rankPercent: 14, title: "Rank 14 Starter Reward", condition: "Rank 14 with self shopping BV", reward: "Fashion voucher test reward" },
-        { key: "rank-19-growth", rankPercent: 19, title: "Rank 19 Growth Reward", condition: "Rank 19 team growth", reward: "Silver gift test reward" },
-        { key: "rank-24-license", rankPercent: 24, title: "Rank 24 License Reward", condition: "Rank 24 license eligibility", reward: "10 license pool test reward" },
-        { key: "rank-29-leader", rankPercent: 29, title: "Rank 29 Leader Reward", condition: "Rank 29 leadership business", reward: "Gold bonus test reward" },
-        { key: "rank-38-gpg", rankPercent: 38, title: "Rank 38 GPG Reward", condition: "Rank 38 GPG eligibility", reward: "GPG access test reward" },
+        { key: "rank-14-starter", rankPercent: 14, title: "Fashion Influencer Starter Reward", condition: "Fashion Influencer with self shopping BV", reward: "Fashion voucher test reward" },
+        { key: "rank-19-growth", rankPercent: 19, title: "Vision Influencer Growth Reward", condition: "Vision Influencer team growth", reward: "Silver gift test reward" },
+        { key: "rank-24-license", rankPercent: 24, title: "Promoter License Reward", condition: "Promoter license eligibility", reward: "10 license pool test reward" },
+        { key: "rank-29-leader", rankPercent: 29, title: "Sales Executive Leader Reward", condition: "Sales Executive leadership business", reward: "Gold bonus test reward" },
+        { key: "rank-38-gpg", rankPercent: 38, title: "Junior Sales Executive GPG Reward", condition: "Junior Sales Executive GPG eligibility", reward: "GPG access test reward" },
       ]),
       description: "Demo reward plan for testing all visible rank reward states.",
     },
@@ -833,22 +833,22 @@ async function main() {
   await prisma.rankHistory.deleteMany({ where: { regno: { in: seedRegnos } } });
   await prisma.rankHistory.createMany({
     data: [
-      { regno: "AF10020001", oldRankId: 8, newRankId: 1, oldRankName: "Free Signup", newRankName: "Rank 14", oldPercent: 0, newPercent: 14, promotionReason: "DEMO_SELF_SHOPPING", changedById: admin.id, createdAt: date("2026-07-25") },
-      { regno: "AF10020002", oldRankId: 1, newRankId: 2, oldRankName: "Rank 14", newRankName: "Rank 19", oldPercent: 14, newPercent: 19, promotionReason: "DEMO_TEAM_BUSINESS", changedById: admin.id, createdAt: date("2026-07-26") },
-      { regno: "AF10020004", oldRankId: 2, newRankId: 3, oldRankName: "Rank 19", newRankName: "Rank 24", oldPercent: 19, newPercent: 24, promotionReason: "DEMO_LICENSE_POOL", changedById: admin.id, createdAt: date("2026-07-27") },
-      { regno: "AF10020005", oldRankId: 3, newRankId: 4, oldRankName: "Rank 24", newRankName: "Rank 29", oldPercent: 24, newPercent: 29, promotionReason: "DEMO_LEADERSHIP", changedById: admin.id, createdAt: date("2026-07-28") },
-      { regno: "AF10020006", oldRankId: 4, newRankId: 5, oldRankName: "Rank 29", newRankName: "Rank 38", oldPercent: 29, newPercent: 38, promotionReason: "DEMO_GPG_READY", changedById: admin.id, createdAt: date("2026-07-29") },
-      { regno: "AF10020007", oldRankId: 5, newRankId: 6, oldRankName: "Rank 38", newRankName: "Rank 41", oldPercent: 38, newPercent: 41, promotionReason: "DEMO_CHALLENGE", changedById: admin.id, createdAt: date("2026-07-30") },
+      { regno: "AF10020001", oldRankId: 8, newRankId: 1, oldRankName: "Free Signup", newRankName: "Fashion Influencer", oldPercent: 10, newPercent: 14, promotionReason: "DEMO_SELF_SHOPPING", changedById: admin.id, createdAt: date("2026-07-25") },
+      { regno: "AF10020002", oldRankId: 1, newRankId: 2, oldRankName: "Fashion Influencer", newRankName: "Vision Influencer", oldPercent: 14, newPercent: 19, promotionReason: "DEMO_TEAM_BUSINESS", changedById: admin.id, createdAt: date("2026-07-26") },
+      { regno: "AF10020004", oldRankId: 2, newRankId: 3, oldRankName: "Vision Influencer", newRankName: "Promoter", oldPercent: 19, newPercent: 24, promotionReason: "DEMO_LICENSE_POOL", changedById: admin.id, createdAt: date("2026-07-27") },
+      { regno: "AF10020005", oldRankId: 3, newRankId: 4, oldRankName: "Promoter", newRankName: "Sales Executive", oldPercent: 24, newPercent: 29, promotionReason: "DEMO_LEADERSHIP", changedById: admin.id, createdAt: date("2026-07-28") },
+      { regno: "AF10020006", oldRankId: 4, newRankId: 5, oldRankName: "Sales Executive", newRankName: "Junior Sales Executive", oldPercent: 29, newPercent: 38, promotionReason: "DEMO_GPG_READY", changedById: admin.id, createdAt: date("2026-07-29") },
+      { regno: "AF10020007", oldRankId: 5, newRankId: 6, oldRankName: "Junior Sales Executive", newRankName: "Senior Sales Executive", oldPercent: 38, newPercent: 41, promotionReason: "DEMO_CHALLENGE", changedById: admin.id, createdAt: date("2026-07-30") },
     ],
   });
 
   await prisma.rewardClaim.deleteMany({ where: { regno: { in: seedRegnos } } });
   await prisma.rewardClaim.createMany({
     data: [
-      { regno: "AF10020001", rewardKey: "rank-14-starter", title: "Rank 14 Starter Reward", conditionText: "Rank 14 with self shopping BV", rewardText: "Fashion voucher test reward", rankPercent: 14, selfBv: 10000, teamBv: 16000, status: "Pending" },
-      { regno: "AF10020004", rewardKey: "rank-24-license", title: "Rank 24 License Reward", conditionText: "Rank 24 license eligibility", rewardText: "10 license pool test reward", rankPercent: 24, selfBv: 22000, teamBv: 42000, status: "Approved", approvedAt: date("2026-07-28") },
-      { regno: "AF10020005", rewardKey: "rank-29-leader", title: "Rank 29 Leader Reward", conditionText: "Rank 29 leadership business", rewardText: "Gold bonus test reward", rankPercent: 29, selfBv: 30000, teamBv: 58000, status: "Paid", approvedAt: date("2026-07-29"), paidAt: date("2026-07-30") },
-      { regno: "AF10020006", rewardKey: "rank-38-gpg", title: "Rank 38 GPG Reward", conditionText: "Rank 38 GPG eligibility", rewardText: "GPG access test reward", rankPercent: 38, selfBv: 47000, teamBv: 89000, status: "Rejected", rejectedAt: date("2026-07-31"), remarks: "Demo rejected state" },
+      { regno: "AF10020001", rewardKey: "rank-14-starter", title: "Fashion Influencer Starter Reward", conditionText: "Fashion Influencer with self shopping BV", rewardText: "Fashion voucher test reward", rankPercent: 14, selfBv: 10000, teamBv: 16000, status: "Pending" },
+      { regno: "AF10020004", rewardKey: "rank-24-license", title: "Promoter License Reward", conditionText: "Promoter license eligibility", rewardText: "10 license pool test reward", rankPercent: 24, selfBv: 22000, teamBv: 42000, status: "Approved", approvedAt: date("2026-07-28") },
+      { regno: "AF10020005", rewardKey: "rank-29-leader", title: "Sales Executive Leader Reward", conditionText: "Sales Executive leadership business", rewardText: "Gold bonus test reward", rankPercent: 29, selfBv: 30000, teamBv: 58000, status: "Paid", approvedAt: date("2026-07-29"), paidAt: date("2026-07-30") },
+      { regno: "AF10020006", rewardKey: "rank-38-gpg", title: "Junior Sales Executive GPG Reward", conditionText: "Junior Sales Executive GPG eligibility", rewardText: "GPG access test reward", rankPercent: 38, selfBv: 47000, teamBv: 89000, status: "Rejected", rejectedAt: date("2026-07-31"), remarks: "Demo rejected state" },
     ],
   });
 
