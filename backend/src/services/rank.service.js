@@ -22,6 +22,18 @@ const rankPercentByName = new Map([
   ["Zonal Sales Executive", 42],
 ]);
 
+const rankAliasesByName = new Map([
+  ["Free Signup", ["Rank 10"]],
+  ["Free Sign Up", ["Free Signup", "Rank 10"]],
+  ["Fashion Influencer", ["Rank 14"]],
+  ["Vision Influencer", ["Rank 19"]],
+  ["Promoter", ["Rank 24"]],
+  ["Sales Executive", ["Rank 29"]],
+  ["Junior Sales Executive", ["Rank 38"]],
+  ["Senior Sales Executive", ["Rank 41"]],
+  ["Zonal Sales Executive", ["Rank 42", "Deprecated Rank 42"]],
+]);
+
 const normalizeRankName = (rankName) => {
   const trimmed = String(rankName || "").trim();
   return trimmed.replace(/\s+/g, " ");
@@ -124,6 +136,7 @@ export const upgrade = async ({ regno, rankId, rankName, oldPercent, newPercent 
   const normalizedRegno = String(regno || "").trim().toUpperCase();
   const normalizedRankName = normalizeRankName(rankName);
   const requestedPercent = rankPercentByName.get(normalizedRankName);
+  const rankNames = [normalizedRankName, ...(rankAliasesByName.get(normalizedRankName) || [])].filter(Boolean);
   const member = await prisma.member.findUnique({ where: { regno: normalizedRegno }, include: { rank: true } });
   const rank = rankId
     ? await prisma.rank.findUnique({ where: { id: Number(rankId) } })
@@ -133,7 +146,7 @@ export const upgrade = async ({ regno, rankId, rankName, oldPercent, newPercent 
         where: {
           OR: [
             { percentage: requestedPercent },
-            { rankName: normalizedRankName },
+            { rankName: { in: rankNames } },
           ],
         },
         orderBy: [{ levelNo: "asc" }, { id: "asc" }],
