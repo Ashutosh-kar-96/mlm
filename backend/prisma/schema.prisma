@@ -274,8 +274,26 @@ model Product {
 
   cartItems  CartItem[]
   orderItems OrderItem[]
+  images     ProductImage[]
 
   @@map("tbl_products")
+}
+
+model ProductImage {
+  id        Int      @id @default(autoincrement())
+  productId Int      @map("product_id")
+  imageUrl  String?  @map("image_url") @db.VarChar(255)
+  imageName String?  @map("image_name") @db.VarChar(180)
+  imageMime String?  @map("image_mime") @db.VarChar(80)
+  imageData String?  @map("image_data") @db.LongText
+  sortOrder Int      @default(0) @map("sort_order")
+  isPrimary Boolean  @default(false) @map("is_primary")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("tbl_product_images")
 }
 
 model CartItem {

@@ -2,6 +2,7 @@ import prisma from "../config/db.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { commissions, createMemberGenealogy, validateSponsor, walletBalance } from "./mlm.service.js";
+import { allRequiredDocumentsUploaded, assertMemberProfileEditable } from "./profile-lock.service.js";
 
 const accessTokenSecret = () => process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || "dev-access-secret";
 const refreshTokenSecret = () => process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET || "dev-refresh-secret";
@@ -32,6 +33,7 @@ const publicMemberSelect = {
   planAmount: true,
   status: true,
   doj: true,
+  fileUploads: true,
 };
 
 const toPublicMember = (member) => ({
@@ -56,6 +58,7 @@ const toPublicMember = (member) => ({
   accountHolderName: member.accountHolderName,
   rank: member.rank?.rankName || "Member",
   kyc: member.panVerification?.status || "Pending",
+  profileLocked: Array.isArray(member.fileUploads) ? allRequiredDocumentsUploaded(member.fileUploads) : false,
   planAmount: member.planAmount,
   status: member.status,
   joined: member.doj,
@@ -100,7 +103,7 @@ const nextRegno = async () => {
 
 export const getAllUsers = () =>
   prisma.member.findMany({
-    include: { rank: true, panVerification: true },
+    include: { rank: true, panVerification: true, fileUploads: true },
     orderBy: { createdAt: "desc" },
   });
 
@@ -178,7 +181,7 @@ export const login = async ({ identifier, email, username, regno, password }) =>
         { mobileNo: loginId },
       ],
     },
-    include: { rank: true, panVerification: true },
+    include: { rank: true, panVerification: true, fileUploads: true },
   });
 
   if (!member || !(await passwordMatches(password, member.password))) {
@@ -223,7 +226,7 @@ export const refreshToken = async ({ refreshToken }) => {
 
   const member = await prisma.member.findUnique({
     where: { id: Number(decoded.id) },
-    include: { rank: true, panVerification: true },
+    include: { rank: true, panVerification: true, fileUploads: true },
   });
   if (!member) {
     const error = new Error("Member not found");
@@ -240,7 +243,7 @@ export const refreshToken = async ({ refreshToken }) => {
 export const me = async (user) => {
   const member = await prisma.member.findUnique({
     where: { id: Number(user.id) },
-    include: { rank: true, panVerification: true },
+    include: { rank: true, panVerification: true, fileUploads: true },
   });
   if (!member) {
     const error = new Error("Member not found");
@@ -269,6 +272,7 @@ const memberByToken = async (user) => {
     include: {
       rank: true,
       panVerification: true,
+      fileUploads: true,
       orders: { orderBy: { saleDate: "desc" }, include: { shop: true, items: true } },
       onlineTransactions: { orderBy: { txnDate: "desc" } },
       payouts: { orderBy: { createdAt: "desc" } },
@@ -682,6 +686,7 @@ export const packages = async () => {
 
 export const updateMyProfile = async (user, data) => {
   const member = await memberByToken(user);
+  await assertMemberProfileEditable(member.regno);
   const profileFields = [
     "username",
     "firstName",
@@ -716,7 +721,7 @@ export const updateMyProfile = async (user, data) => {
   const updated = await prisma.member.update({
     where: { regno: member.regno },
     data: payload,
-    include: { rank: true, panVerification: true },
+    include: { rank: true, panVerification: true, fileUploads: true },
   });
   return toPublicMember(updated);
 };
@@ -752,6 +757,7 @@ export const changeMyPassword = async (user, { oldPassword, newPassword }) => {
 
 export const submitKyc = async (user, data) => {
   const member = await memberByToken(user);
+  await assertMemberProfileEditable(member.regno);
 
   const updatedMember = await prisma.member.update({
     where: { regno: member.regno },

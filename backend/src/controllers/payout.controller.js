@@ -32,3 +32,27 @@ export const distribute = async (req, res, next) => {
     next(err);
   }
 };
+
+export const monthlyPaid = async (req, res, next) => {
+  try {
+    success(res, await payoutService.listMonthlyPaid(req.query));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const monthlyUnpaid = async (req, res, next) => {
+  try {
+    success(res, await payoutService.listMonthlyUnpaid(req.query));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const payMonthlyMember = async (req, res, next) => {
+  try {
+    success(res, await payoutService.payMonthlyMember(req.body, req.user?.id), 201);
+  } catch (err) {
+    next(err);
+  }
+};

@@ -39,6 +39,33 @@ const productPayload = (data = {}) =>
       .map((key) => [key, numberFields.includes(key) && data[key] !== null ? Number(data[key]) : data[key]])
   );
 
+const normalizeImages = (images = []) =>
+  (Array.isArray(images) ? images : [])
+    .map((image, index) => ({
+      imageUrl: image.imageUrl || null,
+      imageName: image.imageName || null,
+      imageMime: image.imageMime || null,
+      imageData: image.imageData || null,
+      sortOrder: Number.isFinite(Number(image.sortOrder)) ? Number(image.sortOrder) : index,
+      isPrimary: Boolean(image.isPrimary),
+    }))
+    .filter((image) => image.imageUrl || (image.imageMime && image.imageData));
+
+const legacyImageFromGallery = (images = []) => {
+  const primary = images.find((image) => image.isPrimary) || images[0];
+  if (!primary) return {};
+  return {
+    imageUrl: primary.imageUrl || "",
+    imageName: primary.imageName || "",
+    imageMime: primary.imageMime || "",
+    imageData: primary.imageData || "",
+  };
+};
+
+const productInclude = {
+  images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }, { id: "asc" }] },
+};
+
 export const listProducts = async (query = {}) => {
   const { skip, take, page, limit } = pagination(query);
   const where = {
@@ -53,25 +80,69 @@ export const listProducts = async (query = {}) => {
     } : {}),
   };
   const [items, total] = await Promise.all([
-    prisma.product.findMany({ where, skip, take, orderBy: { createdAt: "desc" } }),
+    prisma.product.findMany({ where, skip, take, include: productInclude, orderBy: { createdAt: "desc" } }),
     prisma.product.count({ where }),
   ]);
   return { items, meta: { page, limit, total } };
 };
 
-export const createProduct = (data) =>
-  prisma.product.create({ data: { ...productPayload(data), gstPercent: data.gstPercent ?? 0, stock: data.stock ?? 0, active: data.active ?? true } });
-
-export const updateProduct = (id, data) =>
-  prisma.product.update({
-    where: { id: Number(id) },
-    data: productPayload(data),
+export const createProduct = async (data) => {
+  const images = normalizeImages(data.images);
+  const legacyImage = images.length ? legacyImageFromGallery(images) : {};
+  return prisma.product.create({
+    data: {
+      ...productPayload(data),
+      ...legacyImage,
+      gstPercent: data.gstPercent ?? 0,
+      stock: data.stock ?? 0,
+      active: data.active ?? true,
+      ...(images.length ? {
+        images: {
+          create: images.map((image, index) => ({
+            ...image,
+            sortOrder: index,
+            isPrimary: image.isPrimary || index === 0,
+          })),
+        },
+      } : {}),
+    },
+    include: productInclude,
   });
+};
+
+export const updateProduct = async (id, data) => {
+  const images = data.images === undefined ? undefined : normalizeImages(data.images);
+  const legacyImage = images?.length ? legacyImageFromGallery(images) : {};
+
+  return prisma.$transaction(async (tx) => {
+    if (images) {
+      await tx.productImage.deleteMany({ where: { productId: Number(id) } });
+    }
+
+    return tx.product.update({
+      where: { id: Number(id) },
+      data: {
+        ...productPayload(data),
+        ...legacyImage,
+        ...(images?.length ? {
+          images: {
+            create: images.map((image, index) => ({
+              ...image,
+              sortOrder: index,
+              isPrimary: image.isPrimary || index === 0,
+            })),
+          },
+        } : {}),
+      },
+      include: productInclude,
+    });
+  });
+};
 
 export const cart = (regno) =>
   prisma.cartItem.findMany({
     where: { regno },
-    include: { product: true },
+    include: { product: { include: productInclude } },
     orderBy: { createdAt: "desc" },
   });
 
@@ -93,7 +164,7 @@ export const addToCart = async (regno, { productId, quantity = 1 }) => {
     where: { regno_productId: { regno, productId: product.id } },
     update: { quantity: { increment: count } },
     create: { regno, productId: product.id, quantity: count },
-    include: { product: true },
+    include: { product: { include: productInclude } },
   });
 };
 
@@ -107,7 +178,7 @@ export const updateCartItem = (regno, id, { quantity }) => {
   return prisma.cartItem.update({
     where: { id: Number(id), regno },
     data: { quantity: count },
-    include: { product: true },
+    include: { product: { include: productInclude } },
   });
 };
 

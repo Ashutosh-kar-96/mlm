@@ -2,6 +2,7 @@ import prisma from "../config/db.js";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
+import { assertMemberProfileEditable } from "./profile-lock.service.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uploadsRoot = path.resolve(__dirname, "../../uploads");
@@ -53,6 +54,7 @@ const storedFileUrl = async (regno, data) => {
 };
 
 export const create = async (regno, data) => {
+  await assertMemberProfileEditable(regno);
   const fileUrl = await storedFileUrl(regno, data);
   return prisma.fileUpload.create({
     data: {
