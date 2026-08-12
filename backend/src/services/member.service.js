@@ -2,7 +2,7 @@ import prisma from "../config/db.js";
 import bcrypt from "bcryptjs";
 import { dateRange, pagination } from "../utils/query.js";
 import { logAudit } from "./audit.service.js";
-import { createMemberGenealogy, validateSponsor } from "./mlm.service.js";
+import { createMemberGenealogy, validateSponsor, walletBalance } from "./mlm.service.js";
 
 const memberInclude = {
   rank: true,
@@ -100,9 +100,15 @@ export const getMember = async (regno) => {
       licensesReceived: { orderBy: { createdAt: "desc" }, take: 5 },
       gpgSubscriptions: { orderBy: { subscribedAt: "desc" }, take: 12 },
       rankChallenges: { orderBy: { createdAt: "desc" }, take: 5 },
+      walletLedgers: { orderBy: { createdAt: "desc" }, take: 10 },
     },
   });
-  return withoutPassword(member);
+  if (!member) return member;
+
+  return {
+    ...withoutPassword(member),
+    walletBalance: await walletBalance(regno),
+  };
 };
 
 export const createMember = async (data) => {
@@ -226,6 +232,48 @@ export const setStatus = async (regno, status, adminId) => {
   });
   await logAudit(adminId, status === 2 ? "member.block" : "member.status", "Member", regno, { status });
   return member;
+};
+
+export const creditWallet = async (regno, data = {}, adminId) => {
+  const amount = Number(data.amount || 0);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    const error = new Error("Amount must be greater than zero");
+    error.status = 400;
+    throw error;
+  }
+
+  const member = await prisma.member.findUnique({ where: { regno } });
+  if (!member) {
+    const error = new Error("Member not found");
+    error.status = 404;
+    throw error;
+  }
+
+  const remarks = String(data.remarks || "").trim();
+  const referenceId = `admin_credit_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+
+  return prisma.$transaction(async (tx) => {
+    const balance = await walletBalance(regno, tx);
+    const ledger = await tx.walletLedger.create({
+      data: {
+        regno,
+        type: "Credit",
+        description: remarks ? `Admin wallet credit - ${remarks}` : "Admin wallet credit",
+        amount,
+        balance: balance + amount,
+        referenceId,
+      },
+    });
+
+    await logAudit(adminId, "wallet.credit", "Member", regno, {
+      amount,
+      referenceId,
+      remarks: remarks || undefined,
+      balance: balance + amount,
+    }, tx);
+
+    return { ledger, balance: balance + amount };
+  });
 };
 
 export const getDownline = async (regno, query) => {

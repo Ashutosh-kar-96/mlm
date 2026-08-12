@@ -3,6 +3,7 @@ import {
   activateMember,
   blockMember,
   createMember,
+  creditWallet,
   getDownline,
   getMember,
   listMembers,
@@ -24,6 +25,7 @@ router.get("/status/blocked", requireRole("admin"), listMembers("blocked"));
 router.get("/:regno", getMember);
 router.patch("/:regno", requireRole("admin"), updateMember);
 router.patch("/:regno/status", requireRole("admin"), updateMemberStatus);
+router.post("/:regno/wallet-credit", requireRole("admin"), creditWallet);
 router.patch("/:regno/activate", requireRole("admin"), activateMember);
 router.patch("/:regno/block", requireRole("admin"), blockMember);
 router.patch("/:regno/unblock", requireRole("admin"), unblockMember);
