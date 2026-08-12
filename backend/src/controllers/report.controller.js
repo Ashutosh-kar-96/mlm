@@ -25,6 +25,14 @@ export const orders = async (req, res, next) => {
   }
 };
 
+export const updateOrderDeliveryStatus = async (req, res, next) => {
+  try {
+    success(res, await reportService.updateOrderDeliveryStatus(req.params.id, req.body.status));
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const pool = (rankName) => async (req, res, next) => {
   try {
     success(res, await reportService.poolMembers(rankName, req.query));

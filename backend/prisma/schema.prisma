@@ -193,6 +193,7 @@ model Order {
   bv             Decimal? @db.Decimal(12, 2)
   saleDate       DateTime @map("sale_date")
   approvedStatus Int      @default(0) @map("approved_status")
+  deliveryStatus String   @default("Pending") @map("delivery_status") @db.VarChar(30)
   billPath       String?  @map("bill_path") @db.VarChar(255)
 
   // Ship-to address (blank when same as buyer)

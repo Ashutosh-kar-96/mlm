@@ -80,6 +80,28 @@ export const orders = async (query) => {
   return { items, totals: amount._sum, meta: { page, limit, total } };
 };
 
+export const updateOrderDeliveryStatus = async (id, status) => {
+  const nextStatus = String(status || "").trim();
+  if (!["Pending", "Delivered"].includes(nextStatus)) {
+    const error = new Error("Order status must be Pending or Delivered");
+    error.status = 400;
+    throw error;
+  }
+
+  const orderId = Number(id);
+  if (!orderId) {
+    const error = new Error("Valid order ID is required");
+    error.status = 400;
+    throw error;
+  }
+
+  return prisma.order.update({
+    where: { id: orderId },
+    data: { deliveryStatus: nextStatus },
+    include: { items: true, shop: true },
+  });
+};
+
 export const poolMembers = (rankName, query) =>
   prisma.member.findMany({
     where: {

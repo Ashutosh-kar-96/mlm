@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { downlineBusiness, onlineTransactions, orders, pool } from "../controllers/report.controller.js";
+import { downlineBusiness, onlineTransactions, orders, pool, updateOrderDeliveryStatus } from "../controllers/report.controller.js";
 import { requireRole } from "../middlewares/auth.middleware.js";
 
 const router = Router();
@@ -9,6 +9,7 @@ router.use(requireRole("admin"));
 router.get("/downline-business", downlineBusiness);
 router.get("/online-transactions", onlineTransactions);
 router.get("/orders", orders);
+router.patch("/orders/:id/delivery-status", updateOrderDeliveryStatus);
 router.get("/pool/fashion-influencer", pool("Fashion Influencer"));
 router.get("/pool/vision-influencer", pool("Vision Influencer"));
 router.get("/pool/promoter", pool("Promoter"));
