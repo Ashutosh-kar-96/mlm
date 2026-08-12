@@ -193,7 +193,7 @@ export const removeCartItem = (regno, id) =>
   prisma.cartItem.delete({ where: { id: Number(id), regno } });
 
 export const checkout = async (regno, data = {}) => {
-  if (data.paymentMode === "Online") {
+  if (data.paymentMode !== "Wallet") {
     const error = new Error("Online payment is disabled. Please use wallet payment.");
     error.status = 400;
     throw error;
@@ -245,8 +245,8 @@ export const checkout = async (regno, data = {}) => {
         bv,
         totalAmount: total,
         saleDate: new Date(),
-        approvedStatus: data.paymentMode === "Wallet" ? 1 : 0,
-        paymentMode: data.paymentMode || "Online",
+        approvedStatus: 1,
+        paymentMode: "Wallet",
         totalGst: gst,
         totalWithGst: total,
         shippingCost: shipping,
