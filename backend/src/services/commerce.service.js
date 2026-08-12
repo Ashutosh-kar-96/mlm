@@ -5,6 +5,13 @@ import { assertNewcomerOrderLimit, processOrderBusiness, walletBalance } from ".
 const money = (value) => Number(value || 0);
 const orderId = () => `ORD${Date.now().toString().slice(-10)}`;
 const txnId = () => `txn_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+const shippingCharge = (subtotal) => {
+  const amount = money(subtotal);
+  if (amount > 28000) return 699;
+  if (amount > 13000) return 499;
+  if (amount > 6000) return 199;
+  return 0;
+};
 const productWriteFields = [
   "name",
   "description",
@@ -202,7 +209,7 @@ export const checkout = async (regno, data = {}) => {
 
   const subtotal = items.reduce((sum, item) => sum + money(item.product.offerPrice || item.product.price) * item.quantity, 0);
   const gst = items.reduce((sum, item) => sum + (money(item.product.offerPrice || item.product.price) * item.quantity * money(item.product.gstPercent)) / 100, 0);
-  const shipping = money(data.shippingCost);
+  const shipping = shippingCharge(subtotal);
   const total = subtotal + gst + shipping;
   const bv = items.reduce((sum, item) => sum + money(item.product.bv) * item.quantity, 0);
   const pv = items.reduce((sum, item) => sum + money(item.product.pv) * item.quantity, 0);
