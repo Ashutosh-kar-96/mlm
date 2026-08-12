@@ -2,7 +2,10 @@ import prisma from "../config/db.js";
 import { dateRange } from "../utils/query.js";
 
 const NEWCOMER_SINGLE_ORDER_LIMIT = 10000;
-const RANK_24_LICENSE_GRANT = 10;
+const RANK_LICENSE_GRANTS = new Map([
+  [24, 10],
+  [29, 10],
+]);
 const DIRECT_RANK_LABELS = [14, 19, 24, 29, 38, 41];
 const GPG_RANK_LABEL = 38;
 const RANK_41_LABEL = 41;
@@ -356,11 +359,40 @@ const challengeWindowBusiness = async (regno, since, months, client) => {
 };
 
 export const grantRankLicenses = async (member, rank, client = prisma) => {
-  if (rankPercent(rank) < 24) return;
-  if (Number(member.licensesRemaining || 0) >= RANK_24_LICENSE_GRANT) return;
+  const label = rankPercent(rank);
+  const grantAmount = RANK_LICENSE_GRANTS.get(label);
+  if (!grantAmount) return;
+
+  const previousGrant = await client.auditLog.count({
+    where: {
+      action: "rank.licenseGrant",
+      entityType: "Member",
+      entityId: member.regno,
+      detailsJson: { contains: `"rankLabel":${label}` },
+    },
+  });
+  if (previousGrant > 0) return;
+
+  const usedCount = await client.licenseUsage.count({ where: { giverRegno: member.regno } });
+  const totalPool = Number(member.licensesRemaining || 0) + usedCount;
+  if (label === 24 && totalPool >= 10) return;
+  if (label === 29 && totalPool >= 20) return;
+
   await client.member.update({
     where: { regno: member.regno },
-    data: { licensesRemaining: RANK_24_LICENSE_GRANT },
+    data: { licensesRemaining: { increment: grantAmount } },
+  });
+  await client.auditLog.create({
+    data: {
+      action: "rank.licenseGrant",
+      entityType: "Member",
+      entityId: member.regno,
+      detailsJson: JSON.stringify({
+        rankLabel: label,
+        grantAmount,
+        reason: `Rank ${label} license grant`,
+      }),
+    },
   });
 };
 

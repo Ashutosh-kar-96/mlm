@@ -303,6 +303,17 @@ export const getDownline = async (regno, query) => {
     }),
   ]);
   const businessByRegno = new Map(business.map((item) => [item.downlineRegno, item._sum.businessAmount || 0]));
+  const sponsorIds = [...new Set(genealogy.map((item) => item.descendant.sponsorId).filter(Boolean))];
+  const sponsors = sponsorIds.length
+    ? await prisma.member.findMany({
+      where: { regno: { in: sponsorIds } },
+      select: { regno: true, firstName: true, lastName: true, username: true },
+    })
+    : [];
+  const sponsorByRegno = new Map(sponsors.map((sponsor) => [
+    sponsor.regno,
+    [sponsor.firstName, sponsor.lastName].filter(Boolean).join(" ") || sponsor.username || sponsor.regno,
+  ]));
   const items = genealogy.map((item) => ({
     id: item.id,
     regno,
@@ -312,6 +323,7 @@ export const getDownline = async (regno, query) => {
     fromDate: null,
     toDate: null,
     downline: item.descendant,
+    sponsorName: sponsorByRegno.get(item.descendant.sponsorId) || item.descendant.sponsorId || null,
   }));
 
   return { items, meta: { page, limit, total } };

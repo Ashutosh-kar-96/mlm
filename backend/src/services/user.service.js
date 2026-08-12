@@ -652,7 +652,14 @@ export const network = async (user) => {
   });
   const recentDirectMembers = await prisma.member.findMany({
     where: { regno: { in: directMembers.map((item) => item.regno) } },
-    include: { rank: true },
+    include: {
+      rank: true,
+      orders: {
+        where: { approvedStatus: 1 },
+        orderBy: { saleDate: "desc" },
+        take: 50,
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -664,7 +671,10 @@ export const network = async (user) => {
       rank: member.rank?.rankName || "Member",
       children: directMembers.map(toTreeNode),
     },
-    directMembers: recentDirectMembers.map(toPublicMember),
+    directMembers: recentDirectMembers.map((item) => ({
+      ...toPublicMember(item),
+      orders: item.orders,
+    })),
     downline: downlineBusiness.map((item) => ({
       ...item,
       member: toPublicMember(item.downline),
