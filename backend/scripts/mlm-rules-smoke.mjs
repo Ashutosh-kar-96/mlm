@@ -24,24 +24,24 @@ const directPercents = (labels) => calculateDirectRankEntries(chain(labels)).map
 const directReasons = (labels) => calculateDirectRankEntries(chain(labels)).map((entry) => entry.reasonCode);
 
 assert.deepEqual(directPercents([14]), [4]);
-assert.deepEqual(directPercents([14, 19]), [4, 9]);
-assert.deepEqual(directPercents([14, 19, 24, 29, 38]), [4, 9, 24, 29, 38]);
+assert.deepEqual(directPercents([14, 19]), [4, 5]);
+assert.deepEqual(directPercents([14, 19, 24, 29, 38]), [4, 5, 5, 5, 9]);
 assert.deepEqual(directPercents([41]), [41]);
-assert.deepEqual(directPercents([38, 41]), [38, 41]);
-assert.deepEqual(directPercents([14, 24, 38]), [4, 24, 38]);
-assert.deepEqual(directPercents([29, 19, 24, 29, 38]), [29, 9, 24, 29, 38]);
+assert.deepEqual(directPercents([38, 41]), [38, 3]);
+assert.deepEqual(directPercents([14, 24, 38]), [4, 10, 14]);
+assert.deepEqual(directPercents([29, 19, 24, 29, 38]), [29, 0, 0, 0, 9]);
 assert.deepEqual(calculateDirectRankEntries(chain([10]), [
   { rankLabel: 10, baseRate: 10, monthlyCap: null },
   { rankLabel: 14, baseRate: 4, monthlyCap: 4500 },
 ]).map((entry) => entry.percentage), [10]);
 assert.deepEqual(directReasons([29, 19, 24, 29, 38]), [
   "DIRECT_BASE_RATE",
-  "DIRECT_BASE_RATE",
-  "DIRECT_BASE_RATE",
-  "DIRECT_BASE_RATE",
-  "DIRECT_BASE_RATE",
+  "LOWER_THAN_HIGHEST_RANK",
+  "LOWER_THAN_HIGHEST_RANK",
+  "SAME_AS_HIGHEST_RANK",
+  "DIRECT_RANK_DIFFERENCE",
 ]);
-assert.deepEqual(directPercents([24, 19, 29, 14, 38]), [24, 9, 29, 4, 38]);
+assert.deepEqual(directPercents([24, 19, 29, 14, 38]), [24, 0, 5, 0, 9]);
 
 const approved = (value, slot = 1, percentage = 7) => ({
   subscribed: value !== "none",
@@ -122,7 +122,7 @@ const expectOrderCommission = async (tx, ids) => {
     orderBy: { level: "asc" },
   });
 
-  assert.deepEqual(rows.map((row) => Number(row.percentage)), [4, 9, 24, 29, 38]);
+  assert.deepEqual(rows.map((row) => Number(row.percentage)), [4, 5, 5, 5, 9]);
   assert.equal(Number(rows[0].amount).toFixed(2), "225.96");
 };
 

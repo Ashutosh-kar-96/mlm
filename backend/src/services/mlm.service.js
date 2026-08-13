@@ -244,6 +244,7 @@ const licenseReferenceId = ({ giverRegno, recipientRegno }) => `license:${giverR
 
 export const calculateDirectRankEntries = (chain = [], plan = DEFAULT_COMMISSION_PLAN) => {
   const entries = [];
+  let highestRankBelow = null;
   const planMap = directPlanMap(plan);
   const labels = directRankLabels(plan);
 
@@ -251,12 +252,36 @@ export const calculateDirectRankEntries = (chain = [], plan = DEFAULT_COMMISSION
     const label = rankPercent(sponsor.member.rank);
     if (!labels.includes(label)) continue;
 
+    if (highestRankBelow === null) {
+      entries.push({
+        ...sponsor,
+        percentage: directBaseRate(sponsor.member.rank, planMap),
+        reasonCode: "DIRECT_BASE_RATE",
+        rankLabel: label,
+        lowerRankLabel: null,
+      });
+      highestRankBelow = label;
+      continue;
+    }
+
+    if (label > highestRankBelow) {
+      entries.push({
+        ...sponsor,
+        percentage: label - highestRankBelow,
+        reasonCode: "DIRECT_RANK_DIFFERENCE",
+        rankLabel: label,
+        lowerRankLabel: highestRankBelow,
+      });
+      highestRankBelow = label;
+      continue;
+    }
+
     entries.push({
       ...sponsor,
-      percentage: directBaseRate(sponsor.member.rank, planMap),
-      reasonCode: "DIRECT_BASE_RATE",
+      percentage: 0,
+      reasonCode: label === highestRankBelow ? "SAME_AS_HIGHEST_RANK" : "LOWER_THAN_HIGHEST_RANK",
       rankLabel: label,
-      lowerRankLabel: null,
+      lowerRankLabel: highestRankBelow,
     });
   }
 

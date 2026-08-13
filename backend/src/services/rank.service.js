@@ -202,7 +202,7 @@ export const planSummary = async () => {
     ranks,
     differentialIncome: {
       type: "Direct Rank Income",
-      description: "Walk upline from buyer: every configured rank in the sponsor chain earns its own base rate on the final order amount. GPG eligibility is separate and applies only to extra Rank-38/Rank-41 income.",
+      description: "Walk upline from buyer: the nearest qualifying rank earns its base rate on the final order amount, higher ranks earn the positive rank difference, and same/lower ranks receive auditable 0%. GPG eligibility is separate and applies only to extra Rank-38/Rank-41 income.",
     },
     groupIncentives,
     legRules,
