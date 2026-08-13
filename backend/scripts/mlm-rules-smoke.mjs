@@ -44,6 +44,7 @@ assert.deepEqual(directReasons([29, 19, 24, 29, 38]), [
 ]);
 assert.deepEqual(directPercents([24, 19, 29, 14, 38]), [24, 0, 5, 0, 9]);
 assert.deepEqual(directPercentsFromBuyer(14, [38]), [24]);
+assert.deepEqual(directPercentsFromBuyer(10, [38]), [38]);
 assert.deepEqual(directPercentsFromBuyer(10, [14, 38]), [4, 24]);
 
 const approved = (value, slot = 1, percentage = 7) => ({

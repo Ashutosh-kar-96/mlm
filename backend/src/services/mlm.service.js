@@ -250,7 +250,7 @@ const licenseReferenceId = ({ giverRegno, recipientRegno }) => `license:${giverR
 export const calculateDirectRankEntries = (chain = [], plan = DEFAULT_COMMISSION_PLAN, startingRankLabel = null) => {
   const entries = [];
   const initialRankLabel = money(startingRankLabel);
-  let highestRankBelow = initialRankLabel > 0 ? initialRankLabel : null;
+  let highestRankBelow = initialRankLabel >= 14 ? initialRankLabel : null;
   const planMap = directPlanMap(plan);
   const labels = directRankLabels(plan);
 
