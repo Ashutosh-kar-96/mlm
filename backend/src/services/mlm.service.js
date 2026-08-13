@@ -247,9 +247,10 @@ const directBaseRate = (rank, planMap = directPlanMap()) => {
 const isDirectRank = (rank, plan = DEFAULT_COMMISSION_PLAN) => directRankLabels(plan).includes(rankPercent(rank));
 const licenseReferenceId = ({ giverRegno, recipientRegno }) => `license:${giverRegno}:${recipientRegno}`;
 
-export const calculateDirectRankEntries = (chain = [], plan = DEFAULT_COMMISSION_PLAN) => {
+export const calculateDirectRankEntries = (chain = [], plan = DEFAULT_COMMISSION_PLAN, startingRankLabel = null) => {
   const entries = [];
-  let highestRankBelow = null;
+  const initialRankLabel = money(startingRankLabel);
+  let highestRankBelow = initialRankLabel > 0 ? initialRankLabel : null;
   const planMap = directPlanMap(plan);
   const labels = directRankLabels(plan);
 
@@ -850,6 +851,8 @@ export const processOrderBusiness = async ({ order, buyer, baseAmount, bv, recor
   const chain = await sponsorChain(buyer, chainDepth, client);
   const affectedRegnos = [buyer.regno, ...chain.map((sponsor) => sponsor.member.regno)];
   const calculationDate = order.saleDate ? new Date(order.saleDate) : new Date();
+  const buyerRankAtOrderStart = rankPercent(buyer.rank);
+  const commissionBaseAmount = money(bv ?? baseAmount);
 
   if (Number(order.approvedStatus) === 1 && Number(buyer.status || 0) !== 1 && Number(buyer.status || 0) !== 2) {
     await client.member.update({
@@ -888,7 +891,7 @@ export const processOrderBusiness = async ({ order, buyer, baseAmount, bv, recor
   });
 
   const creditCommission = async ({ earner, sourceRegno, level, type, percentage, reasonCode, rankLabel, lowerRankLabel, gpgSlot, subscription }) => {
-    const amountBeforeCap = (money(baseAmount) * money(percentage)) / 100;
+    const amountBeforeCap = (commissionBaseAmount * money(percentage)) / 100;
     let amount = amountBeforeCap;
     const key = commissionSourceKey({ order, earner, type, level, percentage, gpgSlot });
     if (creditedKeys.has(key)) return;
@@ -910,7 +913,7 @@ export const processOrderBusiness = async ({ order, buyer, baseAmount, bv, recor
         sourceRegno,
         level,
         type,
-        baseAmount,
+        baseAmount: commissionBaseAmount,
         percentage,
         amount,
         status: amount > 0 ? "Credited" : "Zero",
@@ -945,7 +948,7 @@ export const processOrderBusiness = async ({ order, buyer, baseAmount, bv, recor
     }
   };
 
-  for (const entry of calculateDirectRankEntries(refreshedChain, directPlan)) {
+  for (const entry of calculateDirectRankEntries(refreshedChain, directPlan, buyerRankAtOrderStart)) {
     await creditCommission({
       earner: entry.member,
       sourceRegno,

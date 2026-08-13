@@ -22,6 +22,7 @@ const chain = (labels) =>
 
 const directPercents = (labels) => calculateDirectRankEntries(chain(labels)).map((entry) => entry.percentage);
 const directReasons = (labels) => calculateDirectRankEntries(chain(labels)).map((entry) => entry.reasonCode);
+const directPercentsFromBuyer = (buyerRank, labels) => calculateDirectRankEntries(chain(labels), undefined, buyerRank).map((entry) => entry.percentage);
 
 assert.deepEqual(directPercents([14]), [4]);
 assert.deepEqual(directPercents([14, 19]), [4, 5]);
@@ -42,6 +43,8 @@ assert.deepEqual(directReasons([29, 19, 24, 29, 38]), [
   "DIRECT_RANK_DIFFERENCE",
 ]);
 assert.deepEqual(directPercents([24, 19, 29, 14, 38]), [24, 0, 5, 0, 9]);
+assert.deepEqual(directPercentsFromBuyer(14, [38]), [24]);
+assert.deepEqual(directPercentsFromBuyer(10, [14, 38]), [4, 24]);
 
 const approved = (value, slot = 1, percentage = 7) => ({
   subscribed: value !== "none",
@@ -143,21 +146,21 @@ const expectOrderCommission = async (tx, ids) => {
     },
   });
 
-  await processOrderBusiness({ order, buyer, baseAmount: 5648.95, bv: 5499, recordBusiness: false }, tx);
+  await processOrderBusiness({ order, buyer, baseAmount: 5499, bv: 5499, recordBusiness: false }, tx);
   const rows = await tx.commission.findMany({
     where: { orderId: order.id, type: "DIRECT_RANK_INCOME" },
     orderBy: { level: "asc" },
   });
 
   assert.deepEqual(rows.map((row) => Number(row.percentage)), [4, 5, 5, 5, 9, 0]);
-  assert.equal(Number(rows[0].amount).toFixed(2), "225.96");
+  assert.equal(Number(rows[0].amount).toFixed(2), "219.96");
 
   const gpgRows = await tx.commission.findMany({
     where: { orderId: order.id, type: "RANK_38_GPG_DIFFERENTIAL" },
     orderBy: { level: "asc" },
   });
   assert.deepEqual(gpgRows.map((row) => Number(row.percentage)), [7]);
-  assert.equal(Number(gpgRows[0].amount).toFixed(2), "395.43");
+  assert.equal(Number(gpgRows[0].amount).toFixed(2), "384.93");
 
   const activatedBuyer = await tx.member.findUnique({ where: { regno: buyer.regno } });
   assert.equal(activatedBuyer.status, 1);

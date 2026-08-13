@@ -7,10 +7,11 @@ const orderId = () => `ORD${Date.now().toString().slice(-10)}`;
 const txnId = () => `txn_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
 const shippingCharge = (subtotal) => {
   const amount = money(subtotal);
-  if (amount > 28000) return 699;
-  if (amount > 13000) return 499;
-  if (amount > 6000) return 199;
-  return 0;
+  if (amount <= 0) return 0;
+  if (amount <= 6000) return 199;
+  if (amount <= 13000) return 299;
+  if (amount <= 29000) return 499;
+  return 699;
 };
 const productWriteFields = [
   "name",
@@ -210,7 +211,8 @@ export const checkout = async (regno, data = {}) => {
   const subtotal = items.reduce((sum, item) => sum + money(item.product.offerPrice || item.product.price) * item.quantity, 0);
   const gst = items.reduce((sum, item) => sum + (money(item.product.offerPrice || item.product.price) * item.quantity * money(item.product.gstPercent)) / 100, 0);
   const shipping = shippingCharge(subtotal);
-  const total = subtotal + gst + shipping;
+  const totalWithGst = subtotal + gst + shipping;
+  const total = subtotal + shipping;
   const bv = items.reduce((sum, item) => sum + money(item.product.bv) * item.quantity, 0);
   const pv = items.reduce((sum, item) => sum + money(item.product.pv) * item.quantity, 0);
   const id = orderId();
@@ -248,7 +250,7 @@ export const checkout = async (regno, data = {}) => {
         approvedStatus: 1,
         paymentMode: "Wallet",
         totalGst: gst,
-        totalWithGst: total,
+        totalWithGst,
         shippingCost: shipping,
         subTotalAmount: subtotal,
         shipAddress: data.shipAddress,
@@ -304,7 +306,7 @@ export const checkout = async (regno, data = {}) => {
       });
     }
 
-    await processOrderBusiness({ order, buyer: member, baseAmount: total, bv }, tx);
+    await processOrderBusiness({ order, buyer: member, baseAmount: bv, bv }, tx);
 
     await tx.cartItem.deleteMany({ where: { regno } });
     return order;

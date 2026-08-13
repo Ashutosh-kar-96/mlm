@@ -27,7 +27,7 @@ const where = {
 const main = async () => {
   const orders = await prisma.order.findMany({
     where,
-    include: { member: true },
+    include: { member: { include: { rank: true } } },
     orderBy: { saleDate: "asc" },
   });
 
@@ -53,11 +53,12 @@ const main = async () => {
           ],
         },
       });
+      const commissionBase = Number(order.bv || order.totalAmount);
       await processOrderBusiness({
         order,
         buyer: order.member,
-        baseAmount: order.totalAmount,
-        bv: order.bv || order.totalAmount,
+        baseAmount: commissionBase,
+        bv: commissionBase,
         recordBusiness: false,
       }, tx);
       console.log(`Recalculated ${order.orderId}`);
