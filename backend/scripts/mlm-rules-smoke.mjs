@@ -4,6 +4,7 @@ import {
   calculateDirectRankEntries,
   calculateGpgEntries,
   cycleKey,
+  processOrderBusiness,
   updateRanksForMembers,
 } from "../src/services/mlm.service.js";
 import { autoAssignGpg, updateGpgApproval } from "../src/services/rank.service.js";
@@ -23,24 +24,24 @@ const directPercents = (labels) => calculateDirectRankEntries(chain(labels)).map
 const directReasons = (labels) => calculateDirectRankEntries(chain(labels)).map((entry) => entry.reasonCode);
 
 assert.deepEqual(directPercents([14]), [4]);
-assert.deepEqual(directPercents([14, 19]), [4, 5]);
-assert.deepEqual(directPercents([14, 19, 24, 29, 38]), [4, 5, 5, 5, 9]);
+assert.deepEqual(directPercents([14, 19]), [4, 9]);
+assert.deepEqual(directPercents([14, 19, 24, 29, 38]), [4, 9, 24, 29, 38]);
 assert.deepEqual(directPercents([41]), [41]);
-assert.deepEqual(directPercents([38, 41]), [38, 3]);
-assert.deepEqual(directPercents([14, 24, 38]), [4, 10, 14]);
-assert.deepEqual(directPercents([29, 19, 24, 29, 38]), [29, 0, 0, 0, 9]);
+assert.deepEqual(directPercents([38, 41]), [38, 41]);
+assert.deepEqual(directPercents([14, 24, 38]), [4, 24, 38]);
+assert.deepEqual(directPercents([29, 19, 24, 29, 38]), [29, 9, 24, 29, 38]);
 assert.deepEqual(calculateDirectRankEntries(chain([10]), [
   { rankLabel: 10, baseRate: 10, monthlyCap: null },
   { rankLabel: 14, baseRate: 4, monthlyCap: 4500 },
 ]).map((entry) => entry.percentage), [10]);
 assert.deepEqual(directReasons([29, 19, 24, 29, 38]), [
   "DIRECT_BASE_RATE",
-  "LOWER_THAN_HIGHEST_RANK",
-  "LOWER_THAN_HIGHEST_RANK",
-  "SAME_AS_HIGHEST_RANK",
-  "DIRECT_RANK_DIFFERENCE",
+  "DIRECT_BASE_RATE",
+  "DIRECT_BASE_RATE",
+  "DIRECT_BASE_RATE",
+  "DIRECT_BASE_RATE",
 ]);
-assert.deepEqual(directPercents([24, 19, 29, 14, 38]), [24, 0, 5, 0, 9]);
+assert.deepEqual(directPercents([24, 19, 29, 14, 38]), [24, 9, 29, 4, 38]);
 
 const approved = (value, slot = 1, percentage = 7) => ({
   subscribed: value !== "none",
@@ -93,6 +94,37 @@ const createMember = (tx, ids, regno, percentage, sponsorId = null) =>
       status: 1,
     },
   });
+
+const expectOrderCommission = async (tx, ids) => {
+  await createMember(tx, ids, "SMKCOM_TOP", 38);
+  await createMember(tx, ids, "SMKCOM_B", 29, "SMKCOM_TOP");
+  await createMember(tx, ids, "SMKCOM_C", 24, "SMKCOM_B");
+  await createMember(tx, ids, "SMKCOM_D", 19, "SMKCOM_C");
+  await createMember(tx, ids, "SMKCOM_E", 14, "SMKCOM_D");
+  const buyer = await createMember(tx, ids, "SMKCOM_F", 14, "SMKCOM_E");
+  const order = await tx.order.create({
+    data: {
+      orderId: "SMKCOMORDER01",
+      regno: buyer.regno,
+      name: buyer.regno,
+      totalAmount: 5648.95,
+      subTotalAmount: 5499,
+      pv: 56,
+      bv: 5499,
+      saleDate: new Date(),
+      approvedStatus: 1,
+    },
+  });
+
+  await processOrderBusiness({ order, buyer, baseAmount: 5648.95, bv: 5499, recordBusiness: false }, tx);
+  const rows = await tx.commission.findMany({
+    where: { orderId: order.id, type: "DIRECT_RANK_INCOME" },
+    orderBy: { level: "asc" },
+  });
+
+  assert.deepEqual(rows.map((row) => Number(row.percentage)), [4, 9, 24, 29, 38]);
+  assert.equal(Number(rows[0].amount).toFixed(2), "225.96");
+};
 
 let promotionCase = 0;
 const expectPromotion = async (tx, ids, { name, candidateRank, directRanks = [], nested, expectedRank }) => {
@@ -180,6 +212,7 @@ try {
     await expectShoppingPromotion(tx, ids, 9000, 19);
     await expectShoppingPromotion(tx, ids, 22500, 24);
     await expectShoppingPromotion(tx, ids, 38000, 29);
+    await expectOrderCommission(tx, ids);
 
     assert.doesNotThrow(() => assertNewcomerOrderLimit({ rank: { percentage: 10 } }, 10000));
     assert.throws(() => assertNewcomerOrderLimit({ rank: { percentage: 10 } }, 10001), /Newcomer single order/);

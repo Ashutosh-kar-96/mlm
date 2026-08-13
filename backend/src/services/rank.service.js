@@ -201,8 +201,8 @@ export const planSummary = async () => {
   return {
     ranks,
     differentialIncome: {
-      type: "Rank Differential",
-      description: "Walk upline from buyer: first qualifying direct rank earns base rate, higher rank labels earn the positive label gap, and equal/lower rank labels receive auditable 0%. GPG eligibility is separate and applies only to extra Rank-38 income.",
+      type: "Direct Rank Income",
+      description: "Walk upline from buyer: every configured rank in the sponsor chain earns its own base rate on the final order amount. GPG eligibility is separate and applies only to extra Rank-38/Rank-41 income.",
     },
     groupIncentives,
     legRules,

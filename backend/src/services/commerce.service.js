@@ -304,7 +304,7 @@ export const checkout = async (regno, data = {}) => {
       });
     }
 
-    await processOrderBusiness({ order, buyer: member, baseAmount: subtotal, bv }, tx);
+    await processOrderBusiness({ order, buyer: member, baseAmount: total, bv }, tx);
 
     await tx.cartItem.deleteMany({ where: { regno } });
     return order;

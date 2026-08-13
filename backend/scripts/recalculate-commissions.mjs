@@ -56,7 +56,7 @@ const main = async () => {
       await processOrderBusiness({
         order,
         buyer: order.member,
-        baseAmount: order.subTotalAmount || order.totalAmount,
+        baseAmount: order.totalAmount,
         bv: order.bv || order.totalAmount,
         recordBusiness: false,
       }, tx);
