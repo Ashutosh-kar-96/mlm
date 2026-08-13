@@ -226,6 +226,11 @@ export const cycleRange = (key = cycleKey()) => {
   return { start, end };
 };
 
+const monthlyPurchaseKey = (date = new Date()) => {
+  const value = new Date(date);
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}`;
+};
+
 const directPlanMap = (plan = DEFAULT_COMMISSION_PLAN) =>
   new Map((Array.isArray(plan) ? plan : DEFAULT_COMMISSION_PLAN).map((item) => [money(item.rankLabel), item]));
 
@@ -293,6 +298,7 @@ export const calculateGpgEntries = (chain = [], eligibilityByRegno = new Map(), 
   if (lowestSpecialRankIndex < 0) return [];
 
   const entries = [];
+  let nextAutoSlot = 1;
 
   for (let index = lowestSpecialRankIndex + 1; index < chain.length; index += 1) {
     const sponsor = chain[index];
@@ -300,25 +306,29 @@ export const calculateGpgEntries = (chain = [], eligibilityByRegno = new Map(), 
 
     const eligibility = eligibilityByRegno.get(sponsor.member.regno) || {};
     if (!eligibility.subscribed) {
-      entries.push({ ...sponsor, percentage: 0, gpgSlot: null, reasonCode: "GPG_NOT_SUBSCRIBED", subscription: eligibility.subscription || null });
+      entries.push({ ...sponsor, percentage: 0, gpgSlot: null, reasonCode: eligibility.reasonCode || "GPG_NOT_SUBSCRIBED", subscription: eligibility.subscription || null });
       continue;
     }
     if (!eligibility.approved) {
-      entries.push({ ...sponsor, percentage: 0, gpgSlot: null, reasonCode: "GPG_NOT_APPROVED", subscription: eligibility.subscription || null });
+      entries.push({ ...sponsor, percentage: 0, gpgSlot: null, reasonCode: eligibility.reasonCode || "GPG_NOT_APPROVED", subscription: eligibility.subscription || null });
       continue;
     }
-    const assignedSlot = Number(eligibility.subscription?.accessNumber || 0);
-    const assignedPercentage = money(eligibility.subscription?.accessPercentage);
+    const manualSlot = Number(eligibility.subscription?.accessNumber || 0);
+    const manualPercentage = money(eligibility.subscription?.accessPercentage);
+    const hasManualSlot = manualSlot >= 1 && manualPercentage > 0;
+    const assignedSlot = hasManualSlot ? manualSlot : nextAutoSlot;
+    const assignedPercentage = hasManualSlot ? manualPercentage : money(sequence[assignedSlot - 1]);
     if (assignedSlot < 1 || assignedSlot > sequence.length || assignedPercentage <= 0) {
       entries.push({ ...sponsor, percentage: 0, gpgSlot: null, reasonCode: `RANK_${rankLabel}_SPECIAL_SLOT_OVER_LIMIT`, subscription: eligibility.subscription || null });
       continue;
     }
+    if (!hasManualSlot) nextAutoSlot += 1;
 
     entries.push({
       ...sponsor,
       percentage: assignedPercentage,
       gpgSlot: assignedSlot,
-      reasonCode: "GPG_APPROVED",
+      reasonCode: eligibility.reasonCode || "GPG_APPROVED",
       subscription: eligibility.subscription || null,
     });
   }
@@ -796,17 +806,39 @@ const gpgEligibilityForChain = async (chain, calculationDate, client, rankLabel 
     .map((sponsor) => sponsor.member.regno);
   if (!specialRegnos.length) return new Map();
 
-  const subscriptions = await client.gpgSubscription.findMany({
-    where: { regno: { in: specialRegnos }, cycleKey: cycleKey(calculationDate) },
+  const { start, end } = periodRange(calculationDate);
+  const qualifyingOrders = await client.order.findMany({
+    where: {
+      regno: { in: specialRegnos },
+      approvedStatus: 1,
+      totalAmount: { gte: 100 },
+      saleDate: { gte: start, lt: end },
+    },
+    orderBy: [{ saleDate: "asc" }, { id: "asc" }],
   });
-  const byRegno = new Map(subscriptions.map((subscription) => [subscription.regno, subscription]));
+  const firstOrderByRegno = new Map();
+  for (const order of qualifyingOrders) {
+    if (!firstOrderByRegno.has(order.regno)) firstOrderByRegno.set(order.regno, order);
+  }
 
   return new Map(specialRegnos.map((regno) => {
-    const subscription = byRegno.get(regno);
+    const firstOrder = firstOrderByRegno.get(regno);
+    const approved = firstOrder ? new Date(firstOrder.saleDate) <= calculationDate : false;
+    const subscription = firstOrder
+      ? {
+          id: null,
+          cycleKey: monthlyPurchaseKey(calculationDate),
+          subscribedAt: firstOrder.saleDate,
+          approvalStatus: approved ? "AUTO_MONTHLY_PURCHASE" : "PURCHASE_AFTER_ORDER",
+          firstPurchaseOrderId: firstOrder.orderId,
+          firstPurchaseAmount: firstOrder.totalAmount,
+        }
+      : null;
     return [regno, {
-      subscribed: Boolean(subscription),
-      approved: subscription?.approvalStatus === "Approved" && Boolean(subscription?.accessNumber),
-      subscription: subscription || null,
+      subscribed: Boolean(firstOrder),
+      approved,
+      reasonCode: approved ? "GPG_MONTHLY_PURCHASE_ELIGIBLE" : firstOrder ? "GPG_PURCHASE_AFTER_ORDER" : "GPG_MIN_PURCHASE_NOT_MET",
+      subscription,
     }];
   }));
 };
@@ -884,6 +916,8 @@ export const processOrderBusiness = async ({ order, buyer, baseAmount, bv, recor
           subscriptionCycle: subscription?.cycleKey || null,
           subscribedAt: subscription?.subscribedAt || null,
           approvalStatus: subscription?.approvalStatus || null,
+          firstPurchaseOrderId: subscription?.firstPurchaseOrderId || null,
+          firstPurchaseAmount: subscription?.firstPurchaseAmount || null,
         }),
       },
     });

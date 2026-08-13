@@ -71,6 +71,19 @@ assert.deepEqual(calculateGpgEntries(mixedGpgChain, mixedEligibility).map((entry
 const notApproved = new Map([[mixedGpgChain[2].member.regno, approved("pending")]]);
 assert.deepEqual(calculateGpgEntries(mixedGpgChain.slice(0, 3), notApproved).map((entry) => entry.reasonCode), ["GPG_NOT_APPROVED"]);
 
+const automaticGpgEligibility = new Map([
+  [mixedGpgChain[2].member.regno, { subscribed: true, approved: true, reasonCode: "GPG_MONTHLY_PURCHASE_ELIGIBLE" }],
+  [mixedGpgChain[3].member.regno, { subscribed: false, approved: false, reasonCode: "GPG_MIN_PURCHASE_NOT_MET" }],
+  [mixedGpgChain[4].member.regno, { subscribed: true, approved: true, reasonCode: "GPG_MONTHLY_PURCHASE_ELIGIBLE" }],
+]);
+assert.deepEqual(calculateGpgEntries(mixedGpgChain, automaticGpgEligibility).map((entry) => entry.percentage), [7, 0, 4.5, 0]);
+assert.deepEqual(calculateGpgEntries(mixedGpgChain, automaticGpgEligibility).map((entry) => entry.reasonCode), [
+  "GPG_MONTHLY_PURCHASE_ELIGIBLE",
+  "GPG_MIN_PURCHASE_NOT_MET",
+  "GPG_MONTHLY_PURCHASE_ELIGIBLE",
+  "GPG_NOT_SUBSCRIBED",
+]);
+
 const rollback = new Error("rollback mlm rules smoke data");
 const rankIds = async (tx) => {
   const ranks = await Promise.all([0, 14, 19, 24, 29, 38, 41].map((percentage) =>
@@ -97,11 +110,25 @@ const createMember = (tx, ids, regno, percentage, sponsorId = null) =>
 
 const expectOrderCommission = async (tx, ids) => {
   await createMember(tx, ids, "SMKCOM_TOP", 38);
-  await createMember(tx, ids, "SMKCOM_B", 29, "SMKCOM_TOP");
+  await createMember(tx, ids, "SMKCOM_A", 38, "SMKCOM_TOP");
+  await createMember(tx, ids, "SMKCOM_B", 29, "SMKCOM_A");
   await createMember(tx, ids, "SMKCOM_C", 24, "SMKCOM_B");
   await createMember(tx, ids, "SMKCOM_D", 19, "SMKCOM_C");
   await createMember(tx, ids, "SMKCOM_E", 14, "SMKCOM_D");
-  const buyer = await createMember(tx, ids, "SMKCOM_F", 14, "SMKCOM_E");
+  const buyer = await createMember(tx, ids, "SMKCOM_F", 0, "SMKCOM_E");
+  await tx.order.create({
+    data: {
+      orderId: "SMKCOMTOPBUY01",
+      regno: "SMKCOM_TOP",
+      name: "SMKCOM_TOP",
+      totalAmount: 100,
+      subTotalAmount: 100,
+      pv: 1,
+      bv: 100,
+      saleDate: new Date(2026, 7, 13, 9, 0, 0),
+      approvedStatus: 1,
+    },
+  });
   const order = await tx.order.create({
     data: {
       orderId: "SMKCOMORDER01",
@@ -111,7 +138,7 @@ const expectOrderCommission = async (tx, ids) => {
       subTotalAmount: 5499,
       pv: 56,
       bv: 5499,
-      saleDate: new Date(),
+      saleDate: new Date(2026, 7, 13, 12, 0, 0),
       approvedStatus: 1,
     },
   });
@@ -122,8 +149,15 @@ const expectOrderCommission = async (tx, ids) => {
     orderBy: { level: "asc" },
   });
 
-  assert.deepEqual(rows.map((row) => Number(row.percentage)), [4, 5, 5, 5, 9]);
+  assert.deepEqual(rows.map((row) => Number(row.percentage)), [4, 5, 5, 5, 9, 0]);
   assert.equal(Number(rows[0].amount).toFixed(2), "225.96");
+
+  const gpgRows = await tx.commission.findMany({
+    where: { orderId: order.id, type: "RANK_38_GPG_DIFFERENTIAL" },
+    orderBy: { level: "asc" },
+  });
+  assert.deepEqual(gpgRows.map((row) => Number(row.percentage)), [7]);
+  assert.equal(Number(gpgRows[0].amount).toFixed(2), "395.43");
 };
 
 let promotionCase = 0;
