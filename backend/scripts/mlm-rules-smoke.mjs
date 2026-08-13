@@ -29,6 +29,10 @@ assert.deepEqual(directPercents([41]), [41]);
 assert.deepEqual(directPercents([38, 41]), [38, 3]);
 assert.deepEqual(directPercents([14, 24, 38]), [4, 10, 14]);
 assert.deepEqual(directPercents([29, 19, 24, 29, 38]), [29, 0, 0, 0, 9]);
+assert.deepEqual(calculateDirectRankEntries(chain([10]), [
+  { rankLabel: 10, baseRate: 10, monthlyCap: null },
+  { rankLabel: 14, baseRate: 4, monthlyCap: 4500 },
+]).map((entry) => entry.percentage), [10]);
 assert.deepEqual(directReasons([29, 19, 24, 29, 38]), [
   "DIRECT_BASE_RATE",
   "LOWER_THAN_HIGHEST_RANK",
@@ -221,7 +225,7 @@ try {
     assert.equal(nextCycle.length, 0);
 
     throw rollback;
-  });
+  }, { maxWait: 30000, timeout: 120000 });
 } catch (error) {
   if (error !== rollback) throw error;
 }

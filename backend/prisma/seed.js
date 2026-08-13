@@ -23,7 +23,7 @@ async function main() {
   });
 
   const ranks = [
-    { id: 8, rankName: "Free Signup", criteriaBv: 0, levelNo: 0, percentage: 10, baseRate: 0, monthlyCap: null, selfShoppingAmount: 0 },
+    { id: 8, rankName: "Free Signup", criteriaBv: 0, levelNo: 0, percentage: 10, baseRate: 10, monthlyCap: null, selfShoppingAmount: 0 },
     { id: 1, rankName: "Fashion Influencer", criteriaBv: 4500, levelNo: 1, percentage: 14, baseRate: 4, monthlyCap: 4500, selfShoppingAmount: 4500 },
     { id: 2, rankName: "Vision Influencer", criteriaBv: 9000, levelNo: 2, percentage: 19, baseRate: 9, monthlyCap: 9000, selfShoppingAmount: 9000 },
     { id: 3, rankName: "Promoter", criteriaBv: 22500, levelNo: 3, percentage: 24, baseRate: 24, monthlyCap: null, selfShoppingAmount: 22500 },
@@ -76,7 +76,7 @@ async function main() {
     where: { keyName: "commission_plan" },
     update: {
       valueJson: JSON.stringify([
-        { rankLabel: 10, baseRate: 0, monthlyCap: null },
+        { rankLabel: 10, baseRate: 10, monthlyCap: null },
         { rankLabel: 14, baseRate: 4, monthlyCap: 4500 },
         { rankLabel: 19, baseRate: 9, monthlyCap: 9000 },
         { rankLabel: 24, baseRate: 24, monthlyCap: null },
@@ -89,7 +89,7 @@ async function main() {
     create: {
       keyName: "commission_plan",
       valueJson: JSON.stringify([
-        { rankLabel: 10, baseRate: 0, monthlyCap: null },
+        { rankLabel: 10, baseRate: 10, monthlyCap: null },
         { rankLabel: 14, baseRate: 4, monthlyCap: 4500 },
         { rankLabel: 19, baseRate: 9, monthlyCap: 9000 },
         { rankLabel: 24, baseRate: 24, monthlyCap: null },

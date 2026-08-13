@@ -6,7 +6,7 @@ const RANK_LICENSE_GRANTS = new Map([
   [24, 10],
   [29, 10],
 ]);
-const DIRECT_RANK_LABELS = [14, 19, 24, 29, 38, 41];
+const DIRECT_RANK_LABELS = [10, 14, 19, 24, 29, 38, 41];
 const GPG_RANK_LABEL = 38;
 const RANK_41_LABEL = 41;
 const GPG_SEQUENCE = [7, 4.5, 3, 2, 1];
@@ -22,7 +22,7 @@ export const SHOPPING_PROMOTION_THRESHOLDS = [
 ];
 
 const DEFAULT_COMMISSION_PLAN = [
-  { rankLabel: 10, baseRate: 0, monthlyCap: null },
+  { rankLabel: 10, baseRate: 10, monthlyCap: null },
   { rankLabel: 14, baseRate: 4, monthlyCap: 4500 },
   { rankLabel: 19, baseRate: 9, monthlyCap: 9000 },
   { rankLabel: 24, baseRate: 24, monthlyCap: null },
@@ -226,21 +226,36 @@ export const cycleRange = (key = cycleKey()) => {
   return { start, end };
 };
 
-const isDirectRank = (rank) => DIRECT_RANK_LABELS.includes(rankPercent(rank));
+const directPlanMap = (plan = DEFAULT_COMMISSION_PLAN) =>
+  new Map((Array.isArray(plan) ? plan : DEFAULT_COMMISSION_PLAN).map((item) => [money(item.rankLabel), item]));
+
+const directRankLabels = (plan = DEFAULT_COMMISSION_PLAN) =>
+  [...directPlanMap(plan).keys()].filter((label) => Number.isFinite(label));
+
+const directBaseRate = (rank, planMap = directPlanMap()) => {
+  const label = rankPercent(rank);
+  const configured = planMap.get(label);
+  if (configured?.baseRate !== undefined && configured?.baseRate !== null) return money(configured.baseRate);
+  return rankBaseRate(rank);
+};
+
+const isDirectRank = (rank, plan = DEFAULT_COMMISSION_PLAN) => directRankLabels(plan).includes(rankPercent(rank));
 const licenseReferenceId = ({ giverRegno, recipientRegno }) => `license:${giverRegno}:${recipientRegno}`;
 
-export const calculateDirectRankEntries = (chain = []) => {
+export const calculateDirectRankEntries = (chain = [], plan = DEFAULT_COMMISSION_PLAN) => {
   const entries = [];
   let highestRankBelow = null;
+  const planMap = directPlanMap(plan);
+  const labels = directRankLabels(plan);
 
   for (const sponsor of chain) {
     const label = rankPercent(sponsor.member.rank);
-    if (!DIRECT_RANK_LABELS.includes(label)) continue;
+    if (!labels.includes(label)) continue;
 
     if (highestRankBelow === null) {
       entries.push({
         ...sponsor,
-        percentage: rankBaseRate(sponsor.member.rank),
+        percentage: directBaseRate(sponsor.member.rank, planMap),
         reasonCode: "DIRECT_BASE_RATE",
         rankLabel: label,
         lowerRankLabel: null,
@@ -810,6 +825,7 @@ export const processOrderBusiness = async ({ order, buyer, baseAmount, bv, recor
   const sourceRegno = refreshedBuyer?.regno || buyer.regno;
   const calculationDate = order.saleDate ? new Date(order.saleDate) : new Date();
   const creditedKeys = new Set();
+  const directPlan = await commissionPlan(client);
 
   await client.commission.deleteMany({ where: { orderId: order.id } });
   await client.walletLedger.deleteMany({
@@ -884,7 +900,7 @@ export const processOrderBusiness = async ({ order, buyer, baseAmount, bv, recor
     }
   };
 
-  for (const entry of calculateDirectRankEntries(refreshedChain)) {
+  for (const entry of calculateDirectRankEntries(refreshedChain, directPlan)) {
     await creditCommission({
       earner: entry.member,
       sourceRegno,
