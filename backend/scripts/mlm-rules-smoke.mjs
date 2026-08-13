@@ -96,7 +96,7 @@ const rankIds = async (tx) => {
   return new Map(ranks.map((item) => [Number(item.percentage), item.id]));
 };
 
-const createMember = (tx, ids, regno, percentage, sponsorId = null) =>
+const createMember = (tx, ids, regno, percentage, sponsorId = null, status = 1) =>
   tx.member.create({
     data: {
       regno,
@@ -104,7 +104,7 @@ const createMember = (tx, ids, regno, percentage, sponsorId = null) =>
       sponsorId,
       rankId: ids.get(percentage),
       planAmount: 0,
-      status: 1,
+      status,
     },
   });
 
@@ -115,7 +115,7 @@ const expectOrderCommission = async (tx, ids) => {
   await createMember(tx, ids, "SMKCOM_C", 24, "SMKCOM_B");
   await createMember(tx, ids, "SMKCOM_D", 19, "SMKCOM_C");
   await createMember(tx, ids, "SMKCOM_E", 14, "SMKCOM_D");
-  const buyer = await createMember(tx, ids, "SMKCOM_F", 0, "SMKCOM_E");
+  const buyer = await createMember(tx, ids, "SMKCOM_F", 0, "SMKCOM_E", 0);
   await tx.order.create({
     data: {
       orderId: "SMKCOMTOPBUY01",
@@ -158,6 +158,10 @@ const expectOrderCommission = async (tx, ids) => {
   });
   assert.deepEqual(gpgRows.map((row) => Number(row.percentage)), [7]);
   assert.equal(Number(gpgRows[0].amount).toFixed(2), "395.43");
+
+  const activatedBuyer = await tx.member.findUnique({ where: { regno: buyer.regno } });
+  assert.equal(activatedBuyer.status, 1);
+  assert.equal(activatedBuyer.loginFlag, true);
 };
 
 let promotionCase = 0;

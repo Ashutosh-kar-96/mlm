@@ -849,13 +849,24 @@ export const processOrderBusiness = async ({ order, buyer, baseAmount, bv, recor
   const chainDepth = 20;
   const chain = await sponsorChain(buyer, chainDepth, client);
   const affectedRegnos = [buyer.regno, ...chain.map((sponsor) => sponsor.member.regno)];
+  const calculationDate = order.saleDate ? new Date(order.saleDate) : new Date();
+
+  if (Number(order.approvedStatus) === 1 && Number(buyer.status || 0) !== 1 && Number(buyer.status || 0) !== 2) {
+    await client.member.update({
+      where: { regno: buyer.regno },
+      data: {
+        status: 1,
+        paidDate: buyer.paidDate || calculationDate,
+        loginFlag: true,
+      },
+    });
+  }
 
   await updateRanksForMembers(affectedRegnos, undefined, client);
 
   const refreshedBuyer = await client.member.findUnique({ where: { regno: buyer.regno }, include: { rank: true } });
   const refreshedChain = await sponsorChain(refreshedBuyer || buyer, chainDepth, client);
   const sourceRegno = refreshedBuyer?.regno || buyer.regno;
-  const calculationDate = order.saleDate ? new Date(order.saleDate) : new Date();
   const creditedKeys = new Set();
   const directPlan = await commissionPlan(client);
 

@@ -3,6 +3,7 @@ import { dateRange, pagination, toInt } from "../utils/query.js";
 import { applyRankLicense, processActivationBusiness } from "./mlm.service.js";
 
 const randomPin = () => `${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`;
+const rankPercent = (rank) => Number(rank?.percentage || 0);
 
 export const plans = () => prisma.pinPlan.findMany({ orderBy: { pinValue: "asc" } });
 
@@ -128,14 +129,24 @@ export const transferPins = async ({ toRegno, planId, pinValue, noOfPins }, admi
 };
 
 export const usePin = async ({ pinNo, usedByRegno, usedForRegno }, actorRole = "user") => {
-  const pin = await prisma.pin.findUnique({ where: { pinNo }, include: { transfer: true, usage: true } });
-  if (!pin || !pin.activeStatus || pin.usedStatus) {
-    const error = new Error("Pin is not available");
+  if (!usedByRegno || !usedForRegno) {
+    const error = new Error("Member IDs are required for pin usage");
     error.status = 400;
     throw error;
   }
-  if (!usedByRegno || !usedForRegno) {
-    const error = new Error("Member IDs are required for pin usage");
+  const pin = pinNo
+    ? await prisma.pin.findUnique({ where: { pinNo }, include: { transfer: true, usage: true } })
+    : await prisma.pin.findFirst({
+        where: {
+          activeStatus: true,
+          usedStatus: false,
+          transfer: { is: { toRegno: usedByRegno } },
+        },
+        include: { transfer: true, usage: true },
+        orderBy: { pinSlNo: "asc" },
+      });
+  if (!pin || !pin.activeStatus || pin.usedStatus) {
+    const error = new Error(pinNo ? "Pin is not available" : "No available activation license found");
     error.status = 400;
     throw error;
   }
@@ -160,9 +171,14 @@ export const usePin = async ({ pinNo, usedByRegno, usedForRegno }, actorRole = "
     error.status = 400;
     throw error;
   }
+  if (rankPercent(usedFor.rank) >= 14) {
+    const error = new Error("Activation license can only be used for Newcomer members");
+    error.status = 400;
+    throw error;
+  }
 
   return prisma.$transaction(async (tx) => {
-    const lockedPin = await tx.pin.findUnique({ where: { pinNo }, include: { transfer: true, usage: true } });
+    const lockedPin = await tx.pin.findUnique({ where: { id: pin.id }, include: { transfer: true, usage: true } });
     if (!lockedPin || !lockedPin.activeStatus || lockedPin.usedStatus || lockedPin.usage) {
       const error = new Error("Pin is not available");
       error.status = 400;
