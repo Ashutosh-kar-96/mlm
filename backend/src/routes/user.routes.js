@@ -19,6 +19,7 @@ import {
   submitKyc,
   subscribeGpg,
   updateMyProfile,
+  useRankLicense,
   wallet,
 } from "../controllers/user.controller.js";
 
@@ -36,6 +37,7 @@ router.get("/me/network", authenticate, network);
 router.get("/me/orders", authenticate, orders);
 router.get("/me/commissions", authenticate, commissions);
 router.get("/me/mlm", authenticate, mlmSummary);
+router.post("/me/rank-license", authenticate, useRankLicense);
 router.post("/me/gpg-subscriptions", authenticate, subscribeGpg);
 router.patch("/me/profile", authenticate, updateMyProfile);
 router.patch("/me/password", authenticate, changeMyPassword);

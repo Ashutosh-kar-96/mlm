@@ -276,6 +276,43 @@ export const creditWallet = async (regno, data = {}, adminId) => {
   });
 };
 
+export const grantLicenses = async (regno, data = {}, adminId) => {
+  const count = Number(data.count || 0);
+  if (!Number.isInteger(count) || count <= 0) {
+    const error = new Error("License count must be a positive whole number");
+    error.status = 400;
+    throw error;
+  }
+
+  const member = await prisma.member.findUnique({
+    where: { regno },
+    select: { regno: true, licensesRemaining: true },
+  });
+  if (!member) {
+    const error = new Error("Member not found");
+    error.status = 404;
+    throw error;
+  }
+
+  const remarks = String(data.remarks || "").trim();
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.member.update({
+      where: { regno },
+      data: { licensesRemaining: { increment: count } },
+      select: { regno: true, licensesRemaining: true },
+    });
+
+    await logAudit(adminId, "license.adminGrant", "Member", regno, {
+      count,
+      previousRemaining: member.licensesRemaining,
+      newRemaining: updated.licensesRemaining,
+      remarks: remarks || undefined,
+    }, tx);
+
+    return updated;
+  });
+};
+
 export const getDownline = async (regno, query) => {
   const { skip, take, page, limit } = pagination(query);
   const where = {

@@ -4,7 +4,6 @@ import { dateRange } from "../utils/query.js";
 const NEWCOMER_SINGLE_ORDER_LIMIT = 10000;
 const RANK_LICENSE_GRANTS = new Map([
   [24, 10],
-  [29, 10],
 ]);
 const DIRECT_RANK_LABELS = [10, 14, 19, 24, 29, 38, 41];
 const GPG_RANK_LABEL = 38;
@@ -337,6 +336,54 @@ export const calculateGpgEntries = (chain = [], eligibilityByRegno = new Map(), 
   return entries;
 };
 
+export const calculateRank41GpgEntries = (chain = [], eligibilityByRegno = new Map()) => {
+  const firstRank41Index = chain.findIndex((sponsor) => rankPercent(sponsor.member.rank) === RANK_41_LABEL);
+  if (firstRank41Index < 0) return [];
+
+  const hasRank38Below = chain
+    .slice(0, firstRank41Index)
+    .some((sponsor) => rankPercent(sponsor.member.rank) === GPG_RANK_LABEL);
+  const startIndex = hasRank38Below ? firstRank41Index : firstRank41Index + 1;
+  const entries = [];
+  let nextAutoSlot = 1;
+
+  for (let index = startIndex; index < chain.length; index += 1) {
+    const sponsor = chain[index];
+    if (rankPercent(sponsor.member.rank) !== RANK_41_LABEL) continue;
+
+    const eligibility = eligibilityByRegno.get(sponsor.member.regno) || {};
+    if (!eligibility.subscribed) {
+      entries.push({ ...sponsor, percentage: 0, gpgSlot: null, reasonCode: eligibility.reasonCode || "GPG_NOT_SUBSCRIBED", subscription: eligibility.subscription || null });
+      continue;
+    }
+    if (!eligibility.approved) {
+      entries.push({ ...sponsor, percentage: 0, gpgSlot: null, reasonCode: eligibility.reasonCode || "GPG_NOT_APPROVED", subscription: eligibility.subscription || null });
+      continue;
+    }
+
+    const manualSlot = Number(eligibility.subscription?.accessNumber || 0);
+    const manualPercentage = money(eligibility.subscription?.accessPercentage);
+    const hasManualSlot = manualSlot >= 1 && manualPercentage > 0;
+    const assignedSlot = hasManualSlot ? manualSlot : nextAutoSlot;
+    const assignedPercentage = hasManualSlot ? manualPercentage : money(RANK_41_GPG_SEQUENCE[assignedSlot - 1]);
+    if (assignedSlot < 1 || assignedSlot > RANK_41_GPG_SEQUENCE.length || assignedPercentage <= 0) {
+      entries.push({ ...sponsor, percentage: 0, gpgSlot: null, reasonCode: `RANK_${RANK_41_LABEL}_SPECIAL_SLOT_OVER_LIMIT`, subscription: eligibility.subscription || null });
+      continue;
+    }
+    if (!hasManualSlot) nextAutoSlot += 1;
+
+    entries.push({
+      ...sponsor,
+      percentage: assignedPercentage,
+      gpgSlot: assignedSlot,
+      reasonCode: eligibility.reasonCode || "GPG_APPROVED",
+      subscription: eligibility.subscription || null,
+    });
+  }
+
+  return entries;
+};
+
 const remainingMonthlyCap = async (member, rank, date, client) => {
   const cap = rankMonthlyCap(rank);
   if (cap === null) return null;
@@ -402,7 +449,6 @@ export const grantRankLicenses = async (member, rank, client = prisma) => {
   const usedCount = await client.licenseUsage.count({ where: { giverRegno: member.regno } });
   const totalPool = Number(member.licensesRemaining || 0) + usedCount;
   if (label === 24 && totalPool >= 10) return;
-  if (label === 29 && totalPool >= 20) return;
 
   await client.member.update({
     where: { regno: member.regno },
@@ -978,7 +1024,7 @@ export const processOrderBusiness = async ({ order, buyer, baseAmount, bv, recor
   }
 
   const rank41Eligibility = await gpgEligibilityForChain(refreshedChain, calculationDate, client, RANK_41_LABEL);
-  for (const entry of calculateGpgEntries(refreshedChain, rank41Eligibility, RANK_41_GPG_SEQUENCE, RANK_41_LABEL)) {
+  for (const entry of calculateRank41GpgEntries(refreshedChain, rank41Eligibility)) {
     await creditCommission({
       earner: entry.member,
       sourceRegno,

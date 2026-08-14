@@ -3,6 +3,7 @@ import {
   assertNewcomerOrderLimit,
   calculateDirectRankEntries,
   calculateGpgEntries,
+  calculateRank41GpgEntries,
   cycleKey,
   processOrderBusiness,
   updateRanksForMembers,
@@ -87,6 +88,30 @@ assert.deepEqual(calculateGpgEntries(mixedGpgChain, automaticGpgEligibility).map
   "GPG_MONTHLY_PURCHASE_ELIGIBLE",
   "GPG_NOT_SUBSCRIBED",
 ]);
+
+const approved41 = (entry, slot, percentage) => [entry.member.regno, {
+  subscribed: true,
+  approved: true,
+  reasonCode: "GPG_MONTHLY_PURCHASE_ELIGIBLE",
+  subscription: { accessNumber: slot, accessPercentage: percentage },
+}];
+const rank41NoRank38Chain = chain([41, 41, 41, 41]);
+const rank41NoRank38Eligibility = new Map([
+  approved41(rank41NoRank38Chain[1], 1, 8.25),
+  approved41(rank41NoRank38Chain[2], 2, 6.25),
+  approved41(rank41NoRank38Chain[3], 3, 4.5),
+]);
+assert.deepEqual(directPercentsFromBuyer(14, [41, 41, 41, 41]), [27, 0, 0, 0]);
+assert.deepEqual(calculateRank41GpgEntries(rank41NoRank38Chain, rank41NoRank38Eligibility).map((entry) => entry.percentage), [8.25, 6.25, 4.5]);
+
+const rank41WithRank38Chain = chain([38, 41, 41, 41]);
+const rank41WithRank38Eligibility = new Map([
+  approved41(rank41WithRank38Chain[1], 1, 8.25),
+  approved41(rank41WithRank38Chain[2], 2, 6.25),
+  approved41(rank41WithRank38Chain[3], 3, 4.5),
+]);
+assert.deepEqual(directPercentsFromBuyer(14, [38, 41, 41, 41]), [24, 3, 0, 0]);
+assert.deepEqual(calculateRank41GpgEntries(rank41WithRank38Chain, rank41WithRank38Eligibility).map((entry) => entry.percentage), [8.25, 6.25, 4.5]);
 
 const rollback = new Error("rollback mlm rules smoke data");
 const rankIds = async (tx) => {

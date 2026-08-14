@@ -148,6 +148,14 @@ export const mlmSummary = async (req, res, next) => {
   }
 };
 
+export const useRankLicense = async (req, res, next) => {
+  try {
+    success(res, await userService.useRankLicense(req.user, req.body), 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const subscribeGpg = async (req, res, next) => {
   try {
     success(res, await subscribeGpgService(req.user?.regno, req.body), 201);
