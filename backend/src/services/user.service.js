@@ -1,7 +1,7 @@
 import prisma from "../config/db.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { commissions, createMemberGenealogy, validateSponsor, walletBalance } from "./mlm.service.js";
+import { applyRankLicense, commissions, createMemberGenealogy, validateSponsor, walletBalance } from "./mlm.service.js";
 import { allRequiredDocumentsUploaded, assertMemberProfileEditable } from "./profile-lock.service.js";
 
 const accessTokenSecret = () => process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || "dev-access-secret";
@@ -383,6 +383,30 @@ export const mlmSummary = async (user) => {
     rankHistory,
     recentCommissions,
   };
+};
+
+export const useRankLicense = async (user, { usedForRegno }) => {
+  const giver = await prisma.member.findUnique({
+    where: { id: Number(user.id) },
+    select: { regno: true },
+  });
+  const receiverRegno = String(usedForRegno || "").trim().toUpperCase();
+
+  if (!giver?.regno || !receiverRegno) {
+    const error = new Error("Member IDs are required for license usage");
+    error.status = 400;
+    throw error;
+  }
+
+  const member = await applyRankLicense({
+    giverRegno: giver.regno,
+    recipientRegno: receiverRegno,
+  });
+  const usage = await prisma.licenseUsage.findUnique({
+    where: { receiverRegno },
+  });
+
+  return { member, usage };
 };
 
 export const dashboard = async (user) => {
