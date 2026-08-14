@@ -365,7 +365,9 @@ export const calculateRank41GpgEntries = (chain = [], eligibilityByRegno = new M
     const manualPercentage = money(eligibility.subscription?.accessPercentage);
     const hasManualSlot = manualSlot >= 1 && manualPercentage > 0;
     const assignedSlot = hasManualSlot ? manualSlot : nextAutoSlot;
-    const assignedPercentage = hasManualSlot ? manualPercentage : money(RANK_41_GPG_SEQUENCE[assignedSlot - 1]);
+    const slotPercentage = hasManualSlot ? manualPercentage : money(RANK_41_GPG_SEQUENCE[assignedSlot - 1]);
+    const rank38GapPercentage = hasRank38Below && index === firstRank41Index ? RANK_41_LABEL - GPG_RANK_LABEL : 0;
+    const assignedPercentage = slotPercentage + rank38GapPercentage;
     if (assignedSlot < 1 || assignedSlot > RANK_41_GPG_SEQUENCE.length || assignedPercentage <= 0) {
       entries.push({ ...sponsor, percentage: 0, gpgSlot: null, reasonCode: `RANK_${RANK_41_LABEL}_SPECIAL_SLOT_OVER_LIMIT`, subscription: eligibility.subscription || null });
       continue;
@@ -375,6 +377,9 @@ export const calculateRank41GpgEntries = (chain = [], eligibilityByRegno = new M
     entries.push({
       ...sponsor,
       percentage: assignedPercentage,
+      slotPercentage,
+      rank38GapPercentage,
+      combinesDirectRankGap: rank38GapPercentage > 0,
       gpgSlot: assignedSlot,
       reasonCode: eligibility.reasonCode || "GPG_APPROVED",
       subscription: eligibility.subscription || null,
@@ -994,20 +999,31 @@ export const processOrderBusiness = async ({ order, buyer, baseAmount, bv, recor
     }
   };
 
+  const gpgEligibility = await gpgEligibilityForChain(refreshedChain, calculationDate, client);
+  const rank41Eligibility = await gpgEligibilityForChain(refreshedChain, calculationDate, client, RANK_41_LABEL);
+  const rank41GpgEntries = calculateRank41GpgEntries(refreshedChain, rank41Eligibility);
+  const rank41CombinedGapRegnos = new Set(
+    rank41GpgEntries
+      .filter((entry) => entry.combinesDirectRankGap && entry.percentage > 0)
+      .map((entry) => entry.member.regno)
+  );
+
   for (const entry of calculateDirectRankEntries(refreshedChain, directPlan, buyerRankAtOrderStart)) {
+    const combinesWithRank41Gpg = entry.rankLabel === RANK_41_LABEL
+      && entry.lowerRankLabel === GPG_RANK_LABEL
+      && rank41CombinedGapRegnos.has(entry.member.regno);
     await creditCommission({
       earner: entry.member,
       sourceRegno,
       level: entry.level,
       type: "DIRECT_RANK_INCOME",
-      percentage: entry.percentage,
-      reasonCode: entry.reasonCode,
+      percentage: combinesWithRank41Gpg ? 0 : entry.percentage,
+      reasonCode: combinesWithRank41Gpg ? "COMBINED_WITH_RANK_41_GPG" : entry.reasonCode,
       rankLabel: entry.rankLabel,
       lowerRankLabel: entry.lowerRankLabel,
     });
   }
 
-  const gpgEligibility = await gpgEligibilityForChain(refreshedChain, calculationDate, client);
   for (const entry of calculateGpgEntries(refreshedChain, gpgEligibility)) {
     await creditCommission({
       earner: entry.member,
@@ -1023,8 +1039,7 @@ export const processOrderBusiness = async ({ order, buyer, baseAmount, bv, recor
     });
   }
 
-  const rank41Eligibility = await gpgEligibilityForChain(refreshedChain, calculationDate, client, RANK_41_LABEL);
-  for (const entry of calculateRank41GpgEntries(refreshedChain, rank41Eligibility)) {
+  for (const entry of rank41GpgEntries) {
     await creditCommission({
       earner: entry.member,
       sourceRegno,

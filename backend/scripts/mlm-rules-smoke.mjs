@@ -111,7 +111,8 @@ const rank41WithRank38Eligibility = new Map([
   approved41(rank41WithRank38Chain[3], 3, 4.5),
 ]);
 assert.deepEqual(directPercentsFromBuyer(14, [38, 41, 41, 41]), [24, 3, 0, 0]);
-assert.deepEqual(calculateRank41GpgEntries(rank41WithRank38Chain, rank41WithRank38Eligibility).map((entry) => entry.percentage), [8.25, 6.25, 4.5]);
+assert.deepEqual(calculateRank41GpgEntries(rank41WithRank38Chain, rank41WithRank38Eligibility).map((entry) => entry.percentage), [11.25, 6.25, 4.5]);
+assert.deepEqual(calculateRank41GpgEntries(rank41WithRank38Chain, rank41WithRank38Eligibility).map((entry) => entry.rank38GapPercentage || 0), [3, 0, 0]);
 
 const rollback = new Error("rollback mlm rules smoke data");
 const rankIds = async (tx) => {
