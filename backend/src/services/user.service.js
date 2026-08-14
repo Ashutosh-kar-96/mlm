@@ -1,7 +1,7 @@
 import prisma from "../config/db.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { applyRankLicense, commissions, createMemberGenealogy, validateSponsor, walletBalance } from "./mlm.service.js";
+import { commissions, createMemberGenealogy, validateSponsor, walletBalance } from "./mlm.service.js";
 import { allRequiredDocumentsUploaded, assertMemberProfileEditable } from "./profile-lock.service.js";
 
 const accessTokenSecret = () => process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || "dev-access-secret";
@@ -330,11 +330,17 @@ export const mlmSummary = async (user) => {
     }
   };
 
-  const [licenseHistory, gpgSubscriptions, rankChallenges, rankHistory, recentCommissions] = await Promise.all([
+  const [licenseHistory, transferredPins, gpgSubscriptions, rankChallenges, rankHistory, recentCommissions] = await Promise.all([
     safeFindMany(prisma.licenseUsage, {
       where: { OR: [{ giverRegno: member.regno }, { receiverRegno: member.regno }] },
       orderBy: { createdAt: "desc" },
       take: 20,
+    }),
+    safeFindMany(prisma.pinTransfer, {
+      where: { toRegno: member.regno },
+      include: { pin: true },
+      orderBy: { transferDate: "desc" },
+      take: 200,
     }),
     safeFindMany(prisma.gpgSubscription, {
       where: { regno: member.regno },
@@ -365,6 +371,8 @@ export const mlmSummary = async (user) => {
     licenses: {
       totalConfigurablePool: Number(member.licensesRemaining || 0) + licenseHistory.filter((item) => item.giverRegno === member.regno).length,
       remaining: member.licensesRemaining || 0,
+      rankRemaining: member.licensesRemaining || 0,
+      adminProvidedRemaining: transferredPins.filter((transfer) => transfer.pin?.activeStatus && !transfer.pin?.usedStatus).length,
       history: licenseHistory,
     },
     gpg: {
@@ -375,30 +383,6 @@ export const mlmSummary = async (user) => {
     rankHistory,
     recentCommissions,
   };
-};
-
-export const useRankLicense = async (user, { usedForRegno }) => {
-  const giver = await prisma.member.findUnique({
-    where: { id: Number(user.id) },
-    select: { regno: true },
-  });
-  const receiverRegno = String(usedForRegno || "").trim().toUpperCase();
-
-  if (!giver?.regno || !receiverRegno) {
-    const error = new Error("Member IDs are required for license usage");
-    error.status = 400;
-    throw error;
-  }
-
-  const member = await applyRankLicense({
-    giverRegno: giver.regno,
-    recipientRegno: receiverRegno,
-  });
-  const usage = await prisma.licenseUsage.findUnique({
-    where: { receiverRegno },
-  });
-
-  return { member, usage };
 };
 
 export const dashboard = async (user) => {

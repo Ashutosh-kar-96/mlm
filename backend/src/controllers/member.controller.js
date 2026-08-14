@@ -83,14 +83,6 @@ export const creditWallet = async (req, res, next) => {
   }
 };
 
-export const grantLicenses = async (req, res, next) => {
-  try {
-    success(res, await memberService.grantLicenses(req.params.regno, req.body, req.user?.id), 201);
-  } catch (err) {
-    next(err);
-  }
-};
-
 export const getDownline = async (req, res, next) => {
   try {
     if (req.user?.role !== "admin" && req.params.regno !== req.user?.regno) {
