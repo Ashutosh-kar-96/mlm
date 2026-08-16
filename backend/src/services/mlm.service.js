@@ -365,10 +365,11 @@ export const calculateRank41GpgEntries = (chain = [], eligibilityByRegno = new M
     const manualPercentage = money(eligibility.subscription?.accessPercentage);
     const hasManualSlot = manualSlot >= 1 && manualPercentage > 0;
     const assignedSlot = hasManualSlot ? manualSlot : nextAutoSlot;
-    const slotPercentage = hasManualSlot ? manualPercentage : money(RANK_41_GPG_SEQUENCE[assignedSlot - 1]);
+    const payoutSlot = hasRank38Below ? assignedSlot : assignedSlot + 1;
+    const slotPercentage = money(RANK_41_GPG_SEQUENCE[payoutSlot - 1]);
     const rank38GapPercentage = hasRank38Below && index === firstRank41Index ? RANK_41_LABEL - GPG_RANK_LABEL : 0;
     const assignedPercentage = slotPercentage + rank38GapPercentage;
-    if (assignedSlot < 1 || assignedSlot > RANK_41_GPG_SEQUENCE.length || assignedPercentage <= 0) {
+    if (payoutSlot < 1 || payoutSlot > RANK_41_GPG_SEQUENCE.length || assignedPercentage <= 0) {
       entries.push({ ...sponsor, percentage: 0, gpgSlot: null, reasonCode: `RANK_${RANK_41_LABEL}_SPECIAL_SLOT_OVER_LIMIT`, subscription: eligibility.subscription || null });
       continue;
     }
@@ -380,7 +381,7 @@ export const calculateRank41GpgEntries = (chain = [], eligibilityByRegno = new M
       slotPercentage,
       rank38GapPercentage,
       combinesDirectRankGap: rank38GapPercentage > 0,
-      gpgSlot: assignedSlot,
+      gpgSlot: payoutSlot,
       reasonCode: eligibility.reasonCode || "GPG_APPROVED",
       subscription: eligibility.subscription || null,
     });

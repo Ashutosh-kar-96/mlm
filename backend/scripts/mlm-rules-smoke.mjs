@@ -102,7 +102,8 @@ const rank41NoRank38Eligibility = new Map([
   approved41(rank41NoRank38Chain[3], 3, 4.5),
 ]);
 assert.deepEqual(directPercentsFromBuyer(14, [41, 41, 41, 41]), [27, 0, 0, 0]);
-assert.deepEqual(calculateRank41GpgEntries(rank41NoRank38Chain, rank41NoRank38Eligibility).map((entry) => entry.percentage), [8.25, 6.25, 4.5]);
+assert.deepEqual(calculateRank41GpgEntries(rank41NoRank38Chain, rank41NoRank38Eligibility).map((entry) => entry.percentage), [6.25, 4.5, 2.5]);
+assert.deepEqual(calculateRank41GpgEntries(rank41NoRank38Chain, rank41NoRank38Eligibility).map((entry) => entry.gpgSlot), [2, 3, 4]);
 
 const rank41WithRank38Chain = chain([38, 41, 41, 41]);
 const rank41WithRank38Eligibility = new Map([
