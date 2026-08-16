@@ -314,12 +314,38 @@ export const getDownline = async (regno, query) => {
     sponsor.regno,
     [sponsor.firstName, sponsor.lastName].filter(Boolean).join(" ") || sponsor.username || sponsor.regno,
   ]));
+  const downlineRegnos = genealogy.map((item) => item.descendantRegno);
+  const orders = downlineRegnos.length
+    ? await prisma.order.findMany({
+      where: {
+        regno: { in: downlineRegnos },
+        approvedStatus: 1,
+        bv: { gt: 0 },
+      },
+      select: {
+        orderId: true,
+        regno: true,
+        saleDate: true,
+        totalAmount: true,
+        bv: true,
+      },
+      orderBy: [{ saleDate: "desc" }, { id: "desc" }],
+    })
+    : [];
+  const ordersByRegno = orders.reduce((byRegno, order) => {
+    const list = byRegno.get(order.regno) || [];
+    list.push(order);
+    byRegno.set(order.regno, list);
+    return byRegno;
+  }, new Map());
   const items = genealogy.map((item) => ({
     id: item.id,
     regno,
     downlineRegno: item.descendantRegno,
     depth: item.depth,
     businessAmount: businessByRegno.get(item.descendantRegno) || 0,
+    totalBv: (ordersByRegno.get(item.descendantRegno) || []).reduce((sum, order) => sum + Number(order.bv || 0), 0),
+    purchaseOrders: ordersByRegno.get(item.descendantRegno) || [],
     fromDate: null,
     toDate: null,
     downline: item.descendant,

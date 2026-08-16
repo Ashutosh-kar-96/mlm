@@ -1077,8 +1077,8 @@ export const processActivationBusiness = async ({ pin, usedFor, usedBy }, client
       orderId: activationOrderId(),
       regno: usedFor.regno,
       name,
-      pv: value / 100,
-      bv: value,
+      pv: 0,
+      bv: 0,
       totalAmount: value,
       saleDate: new Date(),
       approvedStatus: 1,
@@ -1114,8 +1114,6 @@ export const processActivationBusiness = async ({ pin, usedFor, usedBy }, client
       txnDate: new Date(),
     },
   });
-
-  await processOrderBusiness({ order, buyer: usedFor, baseAmount: value, bv: value }, client);
 
   if (usedBy.regno !== usedFor.regno) {
     await client.walletLedger.create({
