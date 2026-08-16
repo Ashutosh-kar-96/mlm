@@ -3,6 +3,7 @@ import { pagination } from "../utils/query.js";
 import { assertNewcomerOrderLimit, processOrderBusiness, walletBalance } from "./mlm.service.js";
 
 const money = (value) => Number(value || 0);
+const GST_PERCENT = 5;
 const orderId = () => `ORD${Date.now().toString().slice(-10)}`;
 const txnId = () => `txn_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
 const shippingCharge = (subtotal) => {
@@ -209,10 +210,10 @@ export const checkout = async (regno, data = {}) => {
   }
 
   const subtotal = items.reduce((sum, item) => sum + money(item.product.offerPrice || item.product.price) * item.quantity, 0);
-  const gst = items.reduce((sum, item) => sum + (money(item.product.offerPrice || item.product.price) * item.quantity * money(item.product.gstPercent)) / 100, 0);
+  const gst = (subtotal * GST_PERCENT) / 100;
   const shipping = shippingCharge(subtotal);
   const totalWithGst = subtotal + gst + shipping;
-  const total = subtotal + shipping;
+  const total = totalWithGst;
   const bv = items.reduce((sum, item) => sum + money(item.product.bv) * item.quantity, 0);
   const pv = items.reduce((sum, item) => sum + money(item.product.pv) * item.quantity, 0);
   const id = orderId();
@@ -268,7 +269,7 @@ export const checkout = async (regno, data = {}) => {
             discountPercent: item.product.discountPercent || 0,
             quantity: item.quantity,
             grossAmount: money(item.product.offerPrice || item.product.price) * item.quantity,
-            gst: (money(item.product.offerPrice || item.product.price) * item.quantity * money(item.product.gstPercent)) / 100,
+            gst: (money(item.product.offerPrice || item.product.price) * item.quantity * GST_PERCENT) / 100,
           })),
         },
       },
