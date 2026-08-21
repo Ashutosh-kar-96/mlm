@@ -16,3 +16,24 @@ export const create = async (req, res, next) => {
     next(err);
   }
 };
+
+export const servePublicUpload = async (req, res, next) => {
+  try {
+    const fileUrl = req.originalUrl.split("?")[0];
+    const file = await uploadService.fileByUrl(fileUrl);
+
+    if (!file?.fileData) {
+      const error = new Error("Uploaded file not found");
+      error.status = 404;
+      throw error;
+    }
+
+    res.setHeader("Content-Type", file.mimeType || "application/octet-stream");
+    res.setHeader("Content-Length", String(file.fileSize || file.fileData.length));
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(file.fileName || "document")}"`);
+    res.send(Buffer.from(file.fileData));
+  } catch (err) {
+    next(err);
+  }
+};

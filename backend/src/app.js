@@ -17,6 +17,7 @@ import reportRoutes from "./routes/report.routes.js";
 import supportRoutes from "./routes/support.routes.js";
 import uploadRoutes from "./routes/upload.routes.js";
 import userRoutes from "./routes/user.routes.js";
+import { servePublicUpload } from "./controllers/upload.controller.js";
 import { authenticate } from "./middlewares/auth.middleware.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
 
@@ -45,6 +46,7 @@ app.use(cors({
 app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || "500mb" }));
 app.use(morgan("dev"));
 app.use("/uploads", express.static(uploadsDir));
+app.get("/uploads/*", servePublicUpload);
 
 app.get("/api/health", (req, res) => {
   res.json({ success: true, message: "MLM backend is running" });

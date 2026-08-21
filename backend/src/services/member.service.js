@@ -9,6 +9,9 @@ const memberInclude = {
   panVerification: true,
 };
 
+const allowedPhotoMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+const maxPhotoBytes = Number(process.env.PROFILE_PHOTO_MAX_BYTES || 5 * 1024 * 1024);
+
 const withoutPassword = (member) => {
   if (!member) return member;
   const { password, ...safeMember } = member;
@@ -64,6 +67,29 @@ const memberCreateError = (error) => {
     return next;
   }
   return error;
+};
+
+const normalizeProfilePhoto = (data = {}) => {
+  if (!data.photoData) return {};
+
+  if (!allowedPhotoMimeTypes.has(data.photoMime)) {
+    const error = new Error("Profile photo must be JPG, PNG or WEBP.");
+    error.status = 400;
+    throw error;
+  }
+
+  const fileSize = Buffer.byteLength(String(data.photoData), "base64");
+  if (fileSize > maxPhotoBytes) {
+    const error = new Error("Profile photo must be 5MB or smaller.");
+    error.status = 400;
+    throw error;
+  }
+
+  return {
+    photoName: data.photoName,
+    photoMime: data.photoMime,
+    photoData: data.photoData,
+  };
 };
 
 export const listMembers = async (query, type) => {
@@ -123,6 +149,7 @@ export const createMember = async (data) => {
     throw error;
   }
   const password = data.password ? await bcrypt.hash(data.password, 10) : undefined;
+  const profilePhoto = normalizeProfilePhoto(data);
   let member;
   try {
     await validateSponsor(data.sponsorId);
@@ -155,6 +182,7 @@ export const createMember = async (data) => {
           mobileNo: data.mobileNo,
           postalCode: data.postalCode,
           birthday: data.birthday ? new Date(data.birthday) : undefined,
+          ...profilePhoto,
           bankName: data.bankName,
           branch: data.branch,
           accountNo: data.accountNo,

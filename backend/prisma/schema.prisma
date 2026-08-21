@@ -54,6 +54,9 @@ model Member {
   mobileNo      String?   @map("mobile_no") @db.VarChar(15)
   postalCode    String?   @map("postal_code") @db.VarChar(10)
   birthday      DateTime? @db.DateTime
+  photoName     String?   @map("photo_name") @db.VarChar(180)
+  photoMime     String?   @map("photo_mime") @db.VarChar(80)
+  photoData     String?   @map("photo_data") @db.LongText
 
   // Bank Details
   bankName          String? @map("bank_name") @db.VarChar(100)
@@ -651,11 +654,15 @@ model FileUpload {
   type      String   @db.VarChar(40)
   fileName  String?  @map("file_name") @db.VarChar(180)
   fileUrl   String   @map("file_url") @db.VarChar(255)
+  mimeType  String?  @map("mime_type") @db.VarChar(80)
+  fileSize  Int?     @map("file_size")
+  fileData  Bytes?   @map("file_data") @db.LongBlob
   status    String   @default("Pending") @db.VarChar(30)
   createdAt DateTime @default(now()) @map("created_at")
 
   member Member @relation(fields: [regno], references: [regno])
 
+  @@index([fileUrl])
   @@map("tbl_file_uploads")
 }
 

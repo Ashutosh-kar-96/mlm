@@ -1,13 +1,20 @@
 import prisma from "../config/db.js";
-import fs from "fs/promises";
-import path from "path";
-import { fileURLToPath } from "url";
 import { assertMemberProfileEditable } from "./profile-lock.service.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const uploadsRoot = path.resolve(__dirname, "../../uploads");
 const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 const maxFileBytes = Number(process.env.KYC_UPLOAD_MAX_BYTES || 5 * 1024 * 1024);
+
+const publicUploadSelect = {
+  id: true,
+  regno: true,
+  type: true,
+  fileName: true,
+  fileUrl: true,
+  mimeType: true,
+  fileSize: true,
+  status: true,
+  createdAt: true,
+};
 
 const sanitize = (value, fallback = "document") =>
   String(value || fallback)
@@ -21,8 +28,15 @@ const parseDataUrl = (dataUrl = "") => {
   return { mime: match[1], buffer: Buffer.from(match[2], "base64") };
 };
 
-const storedFileUrl = async (regno, data) => {
-  if (!data.fileData) return data.fileUrl || data.url;
+const storedFile = (regno, data) => {
+  if (!data.fileData) {
+    return {
+      fileUrl: data.fileUrl || data.url,
+      mimeType: data.mimeType,
+      fileSize: data.fileSize,
+      fileData: undefined,
+    };
+  }
 
   const parsed = parseDataUrl(data.fileData);
   if (!parsed) {
@@ -44,26 +58,31 @@ const storedFileUrl = async (regno, data) => {
   const uploadType = sanitize(data.type, "kyc");
   const memberRegno = sanitize(regno, "member");
   const originalName = sanitize(data.fileName);
-  const targetDir = path.join(uploadsRoot, "kyc", memberRegno, uploadType);
   const storedName = `${Date.now()}-${originalName}`;
-  const targetPath = path.join(targetDir, storedName);
 
-  await fs.mkdir(targetDir, { recursive: true });
-  await fs.writeFile(targetPath, parsed.buffer);
-  return `/uploads/kyc/${memberRegno}/${uploadType}/${storedName}`;
+  return {
+    fileUrl: `/uploads/kyc/${memberRegno}/${uploadType}/${storedName}`,
+    mimeType: parsed.mime,
+    fileSize: parsed.buffer.length,
+    fileData: parsed.buffer,
+  };
 };
 
 export const create = async (regno, data) => {
   await assertMemberProfileEditable(regno);
-  const fileUrl = await storedFileUrl(regno, data);
+  const file = storedFile(regno, data);
   return prisma.fileUpload.create({
     data: {
       regno,
       type: data.type,
       fileName: data.fileName,
-      fileUrl: fileUrl || `/uploads/${data.type}/${data.fileName || "document"}`,
+      fileUrl: file.fileUrl || `/uploads/${data.type}/${data.fileName || "document"}`,
+      mimeType: file.mimeType,
+      fileSize: file.fileSize,
+      fileData: file.fileData,
       status: data.status || "Pending",
     },
+    select: publicUploadSelect,
   });
 };
 
@@ -74,4 +93,17 @@ export const list = (regno, query = {}) =>
       ...(query.type ? { type: query.type } : {}),
     },
     orderBy: { createdAt: "desc" },
+    select: publicUploadSelect,
+  });
+
+export const fileByUrl = (fileUrl) =>
+  prisma.fileUpload.findFirst({
+    where: { fileUrl },
+    select: {
+      fileName: true,
+      mimeType: true,
+      fileSize: true,
+      fileData: true,
+      createdAt: true,
+    },
   });
