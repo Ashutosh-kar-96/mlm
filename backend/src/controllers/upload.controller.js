@@ -19,7 +19,8 @@ export const create = async (req, res, next) => {
 
 export const servePublicUpload = async (req, res, next) => {
   try {
-    const fileUrl = req.originalUrl.split("?")[0];
+    const requestPath = req.originalUrl.split("?")[0];
+    const fileUrl = requestPath.replace(/^\/api\/public-uploads/, "/uploads");
     const file = await uploadService.fileByUrl(fileUrl);
 
     if (!file?.fileData) {

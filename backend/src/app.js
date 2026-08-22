@@ -47,6 +47,7 @@ app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || "500mb" }));
 app.use(morgan("dev"));
 app.use("/uploads", express.static(uploadsDir));
 app.get("/uploads/*", servePublicUpload);
+app.get("/api/public-uploads/*", servePublicUpload);
 
 app.get("/api/health", (req, res) => {
   res.json({ success: true, message: "MLM backend is running" });
